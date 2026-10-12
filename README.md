@@ -123,10 +123,23 @@ flowchart TD
 
 `@v1` follows the latest `v1.x.y` release. To pin exactly, use a full commit SHA.
 
-| Component | Version |
-|---|---|
-| unreal-agent-runner | 0.3.1 |
-| nono | 0.79.0 |
+[`scripts/install.sh`](scripts/install.sh) pins the `unreal-agent-runner` and nono versions and their
+SHA-256 sums.
+
+## Updating pinned versions
+
+Renovate opens a PR when Unreal Agent or nono has a new release. The PR changes only the version.
+The `Install check` workflow fails on that PR until the SHA-256 sums match the new release.
+
+1. Open the release named in the Renovate PR.
+2. Copy the `linux_amd64` and `linux_arm64` sums from `SHA256SUMS` (Unreal Agent) or `SHA256SUMS.txt` (nono).
+3. Paste them into the `amd64` and `arm64` branches of the `case` block in `scripts/install.sh`, on the PR branch.
+4. Wait for `Install check` to pass on both architectures, then merge the PR.
+5. Create the next `v1.x.y` release and publish it to GitHub Marketplace.
+6. Move the `v1` tag to it: `git tag -f v1 v1.x.y && git push -f origin v1`.
+
+Workflows that use `@v1` get a change only after step 6. This also applies to Renovate PRs for
+`actions/checkout` and `actions/upload-artifact` in `action.yml`.
 
 ## License
 

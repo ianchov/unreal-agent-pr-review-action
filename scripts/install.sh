@@ -3,7 +3,10 @@
 # Each download is checked against the SHA-256 in its release's SHA256SUMS / SHA256SUMS.txt.
 set -euo pipefail
 
+# Renovate updates these versions but not the SHA-256 sums below. Update the sums in the same PR.
+# renovate: datasource=github-releases depName=unreallabsai/unreal-agent
 UNREAL_AGENT_VERSION="0.3.1"
+# renovate: datasource=github-releases depName=nolabs-ai/nono
 NONO_VERSION="0.79.0"
 
 arch="$(dpkg --print-architecture)"

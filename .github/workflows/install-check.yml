@@ -1,0 +1,28 @@
+name: Install check
+# Runs scripts/install.sh on both architectures, so a version bump with stale SHA-256 sums fails here
+# and not in the workflows that use this action.
+on:
+  pull_request:
+    paths:
+      - scripts/install.sh
+      - .github/workflows/install-check.yml
+
+permissions:
+  contents: read
+
+jobs:
+  install:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - run: bash scripts/install.sh
+      - run: |
+          nono --version
+          test -x "$RUNNER_TEMP/unreal-agent-bin/unreal-agent-runner"

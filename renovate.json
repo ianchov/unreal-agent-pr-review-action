@@ -2,5 +2,30 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended"
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Update pinned release versions in scripts/install.sh",
+      "managerFilePatterns": [
+        "/^scripts/install\\.sh$/"
+      ],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>[a-z-]+) depName=(?<depName>\\S+)\\s+[A-Z_]+_VERSION=\"(?<currentValue>[^\"]+)\""
+      ],
+      "extractVersionTemplate": "^v(?<version>.+)$",
+      "versioningTemplate": "semver"
+    }
+  ],
+  "packageRules": [
+    {
+      "matchDepNames": [
+        "unreallabsai/unreal-agent",
+        "nolabs-ai/nono"
+      ],
+      "prBodyNotes": [
+        "**Before you merge:** this PR changes only the version. Copy the `linux_amd64` and `linux_arm64` SHA-256 sums from the release's `SHA256SUMS` (Unreal Agent) or `SHA256SUMS.txt` (nono) into `scripts/install.sh`. The `Install check` workflow fails until the sums match. See \"Updating pinned versions\" in the README."
+      ]
+    }
   ]
 }
