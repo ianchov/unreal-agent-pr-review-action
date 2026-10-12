@@ -18,6 +18,18 @@ merge_base=$(git merge-base "$BASE_SHA" "$HEAD_SHA")
 # Lockfiles are left out of the diff: they are large and rarely worth review tokens.
 paths=(-- . ':(exclude,glob)**/uv.lock' ':(exclude,glob)**/package-lock.json' ':(exclude,glob)**/pnpm-lock.yaml'
   ':(exclude,glob)**/yarn.lock' ':(exclude,glob)**/Cargo.lock' ':(exclude,glob)**/go.sum' ':(exclude,glob)**/poetry.lock')
+# Extra excludes from the diff-exclude input: one git pathspec per line, blank lines ignored.
+# This script adds the :(exclude) magic, so an entry must not start with its own magic.
+while IFS= read -r spec; do
+  spec="${spec#"${spec%%[![:space:]]*}"}"
+  spec="${spec%"${spec##*[![:space:]]}"}"
+  if [ -z "$spec" ]; then continue; fi
+  if [[ "$spec" == :* ]]; then
+    echo "::error::diff-exclude entry '$spec' must be a plain pathspec, without a leading ':'."
+    exit 1
+  fi
+  paths+=(":(exclude)$spec")
+done <<< "${DIFF_EXCLUDE:-}"
 git diff --stat "$merge_base" "$HEAD_SHA" "${paths[@]}" > "$inputs/changed-files.txt"
 git diff --unified=10 "$merge_base" "$HEAD_SHA" "${paths[@]}" > "$inputs/pr.diff"
 

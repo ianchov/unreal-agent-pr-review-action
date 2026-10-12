@@ -18,6 +18,11 @@ inputs:
   review-timeout-minutes:
     description: Time limit for all review rounds. The runner has no timeout for each model request.
     default: "40"
+  diff-exclude:
+    description: >-
+      Extra paths to leave out of the diff, one git pathspec per line, for example
+      "app/staticfiles". Common lockfiles are always left out.
+    default: ""
 
 outputs:
   status:
@@ -57,6 +62,7 @@ runs:
         PR_BODY: ${{ github.event.pull_request.body }}
         BASE_SHA: ${{ github.event.pull_request.base.sha }}
         HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        DIFF_EXCLUDE: ${{ inputs.diff-exclude }}
       run: bash "$GITHUB_ACTION_PATH/scripts/prepare.sh"
     - id: review
       if: steps.gate.outputs.skipped == 'false'
