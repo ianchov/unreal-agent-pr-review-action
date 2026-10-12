@@ -137,10 +137,10 @@ URL in `scripts/install.sh` too. Unreal Agent did this between v0.2.0 and v0.3.1
 2. Copy the `linux_amd64` and `linux_arm64` sums from `SHA256SUMS` (Unreal Agent) or `SHA256SUMS.txt` (nono).
 3. Paste them into the `amd64` and `arm64` branches of the `case` block in `scripts/install.sh`, on the PR branch.
 4. Wait for `Install check` to pass on both architectures, then merge the PR.
-5. Create the next `v1.x.y` release and publish it to GitHub Marketplace.
-6. Move the `v1` tag to it: `git tag -f v1 v1.x.y && git push -f origin v1`.
+5. Create the next `v1.x.y` release from `main` and publish it to GitHub Marketplace.
+   The `Move major tag` workflow then moves `v1` to it.
 
-Workflows that use `@v1` get a change only after step 6. This also applies to Renovate PRs for
+Workflows that use `@v1` get a change only after step 5. This also applies to Renovate PRs for
 `actions/checkout` and `actions/upload-artifact` in `action.yml`.
 
 ## License

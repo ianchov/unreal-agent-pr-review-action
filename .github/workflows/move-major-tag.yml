@@ -1,0 +1,40 @@
+name: Move major tag
+# Points the major tag (v1, v2, ...) at each published vX.Y.Z release, so @vX users get it.
+# A release older than the newest vX.* tag does not move the major tag back.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: move-major-tag
+  cancel-in-progress: false
+
+jobs:
+  move:
+    if: ${{ !github.event.release.prerelease && !github.event.release.draft }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ github.event.release.tag_name }}
+    steps:
+      - name: Move major tag
+        run: |
+          [[ "$TAG" =~ ^v([0-9]+)\.[0-9]+\.[0-9]+$ ]] || { echo "::error::Release tag $TAG is not vX.Y.Z."; exit 1; }
+          major="v${BASH_REMATCH[1]}"
+          newest=$(gh api "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/$major." --jq '.[].ref | ltrimstr("refs/tags/")' \
+            | grep -E "^$major\.[0-9]+\.[0-9]+$" | sort -V | tail -n 1)
+          if [ "$newest" != "$TAG" ]; then
+            echo "::notice::$TAG is older than $newest. $major stays where it is."
+            exit 0
+          fi
+          sha=$(gh api "repos/$GITHUB_REPOSITORY/commits/$TAG" --jq .sha)
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$major" > /dev/null 2>&1; then
+            gh api --method PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/$major" -f sha="$sha" -F force=true > /dev/null
+          else
+            gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$major" -f sha="$sha" > /dev/null
+          fi
+          echo "::notice::Moved $major to $TAG ($sha)."
