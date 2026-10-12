@@ -1,11 +1,9 @@
 name: Install check
 # Runs scripts/install.sh on both architectures, so a version bump with stale SHA-256 sums fails here
-# and not in the workflows that use this action.
+# and not in the workflows that use this action. It runs on every PR because it is a required check:
+# a path filter would leave PRs that skip it waiting forever.
 on:
   pull_request:
-    paths:
-      - scripts/install.sh
-      - .github/workflows/install-check.yml
 
 permissions:
   contents: read
