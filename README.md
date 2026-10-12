@@ -49,6 +49,7 @@ The action checks out the PR head itself. Do not add a separate checkout step.
 | `model` | `claude-sonnet-5-5` | Anthropic model for the agent and the reviewer check. |
 | `max-review-rounds` | `3` | Most agent and reviewer-check rounds per run. |
 | `review-timeout-minutes` | `40` | Time limit for all review rounds. The runner has no timeout for each model request. |
+| `diff-exclude` | empty | Extra paths to leave out of the diff, one git pathspec per line, for example `app/staticfiles`. Common lockfiles are always left out. |
 
 ## Outputs
 
