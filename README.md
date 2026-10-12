@@ -130,6 +130,8 @@ SHA-256 sums.
 
 Renovate opens a PR when Unreal Agent or nono has a new release. The PR changes only the version.
 The `Install check` workflow fails on that PR until the SHA-256 sums match the new release.
+If it fails with curl exit code 22 (HTTP error), the release renamed its files. Update the download
+URL in `scripts/install.sh` too. Unreal Agent did this between v0.2.0 and v0.3.1.
 
 1. Open the release named in the Renovate PR.
 2. Copy the `linux_amd64` and `linux_arm64` sums from `SHA256SUMS` (Unreal Agent) or `SHA256SUMS.txt` (nono).
