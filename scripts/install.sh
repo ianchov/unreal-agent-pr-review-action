@@ -5,7 +5,7 @@ set -euo pipefail
 
 # Renovate updates these versions but not the SHA-256 sums below. Update the sums in the same PR.
 # renovate: datasource=github-releases depName=unreallabsai/unreal-agent
-UNREAL_AGENT_VERSION="0.3.1"
+UNREAL_AGENT_VERSION="0.2.0"
 # renovate: datasource=github-releases depName=nolabs-ai/nono
 NONO_VERSION="0.79.0"
 
