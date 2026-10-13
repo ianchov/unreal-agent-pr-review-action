@@ -1,0 +1,56 @@
+name: Release
+# Publishes the next patch release (vX.Y.Z+1) when a Renovate pull request (branch renovate/*)
+# that changes the shipped files is merged, by Renovate or by hand. Then moves the major tag.
+# Other changes are released by hand (see "Releases" in the README).
+on:
+  push:
+    branches: [main]
+    paths:
+      - action.yml
+      - scripts/**
+      - defaults/**
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    outputs:
+      tag: ${{ steps.publish.outputs.tag }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Publish patch release
+        id: publish
+        run: |
+          branches=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" --jq '.[] | select(.merged_at != null) | .head.ref')
+          if ! grep -q '^renovate/' <<<"$branches"; then
+            echo "::notice::$GITHUB_SHA is not from a merged Renovate pull request. Release it by hand."
+            exit 0
+          fi
+          latest=$(gh api --paginate "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/v" --jq '.[].ref | ltrimstr("refs/tags/")' \
+            | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1)
+          [ -n "$latest" ] || { echo "::error::No vX.Y.Z tag to bump. Publish the first release by hand."; exit 1; }
+          if [ "$(gh api "repos/$GITHUB_REPOSITORY/commits/$latest" --jq .sha)" = "$GITHUB_SHA" ]; then
+            echo "::notice::$latest already points at $GITHUB_SHA."
+            exit 0
+          fi
+          IFS=. read -r major minor patch <<<"${latest#v}"
+          tag="v$major.$minor.$((patch + 1))"
+          gh release create "$tag" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "$tag" \
+            --generate-notes --notes-start-tag "$latest"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "::notice::Published $tag ($GITHUB_SHA)."
+
+  move-major-tag:
+    needs: release
+    if: ${{ needs.release.outputs.tag != '' }}
+    uses: ./.github/workflows/move-major-tag.yml
+    with:
+      tag: ${{ needs.release.outputs.tag }}

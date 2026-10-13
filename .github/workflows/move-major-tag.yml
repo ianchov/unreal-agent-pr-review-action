@@ -1,9 +1,16 @@
 name: Move major tag
 # Points the major tag (v1, v2, ...) at each published vX.Y.Z release, so @vX users get it.
 # A release older than the newest vX.* tag does not move the major tag back.
+# release.yml calls it: a release published with GITHUB_TOKEN does not start this workflow.
 on:
   release:
     types: [published]
+  workflow_call:
+    inputs:
+      tag:
+        description: The vX.Y.Z tag of the release that was published.
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -19,7 +26,7 @@ jobs:
     timeout-minutes: 5
     env:
       GH_TOKEN: ${{ github.token }}
-      TAG: ${{ github.event.release.tag_name }}
+      TAG: ${{ inputs.tag || github.event.release.tag_name }}
     steps:
       - name: Move major tag
         run: |

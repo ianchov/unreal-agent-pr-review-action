@@ -6,26 +6,39 @@
   "customManagers": [
     {
       "customType": "regex",
-      "description": "Update pinned release versions in scripts/install.sh",
+      "description": "Release tags and asset SHA-256 sums in scripts/install.sh. One dependency per table row, so each architecture's digest is updated.",
       "managerFilePatterns": [
         "/^scripts/install\\.sh$/"
       ],
       "matchStrings": [
-        "# renovate: datasource=(?<datasource>[a-z-]+) depName=(?<depName>\\S+)\\s+[A-Z_]+_VERSION=\"(?<currentValue>[^\"]+)\""
+        "\\n(?<depName>[a-z-]+) (?<currentValue>\\S+) [\\w-]+ (?<packageName>[\\w.-]+/[\\w.-]+) \\S+ (?<currentDigest>[0-9a-f]{64})"
       ],
-      "extractVersionTemplate": "^v(?<version>.+)$",
-      "versioningTemplate": "semver"
+      "datasourceTemplate": "github-release-attachments"
     }
   ],
   "packageRules": [
     {
-      "matchDepNames": [
-        "unreallabsai/unreal-agent",
-        "nolabs-ai/nono"
+      "description": "Unreal Agent and nono (scripts/install.sh) and GitHub Actions: wait 3 days after a release, then Renovate merges minor and patch updates once Install check passes. A merged change to action.yml or scripts/ publishes the next patch release (release.yml).",
+      "matchFileNames": [
+        "scripts/install.sh",
+        "action.yml",
+        ".github/workflows/**"
       ],
-      "prBodyNotes": [
-        "**Before you merge:** this PR changes only the version. Copy the `linux_amd64` and `linux_arm64` SHA-256 sums from the release's `SHA256SUMS` (Unreal Agent) or `SHA256SUMS.txt` (nono) into `scripts/install.sh`. The `Install check` workflow fails until the sums match. See \"Updating pinned versions\" in the README."
-      ]
+      "minimumReleaseAge": "3 days"
+    },
+    {
+      "matchFileNames": [
+        "scripts/install.sh",
+        "action.yml",
+        ".github/workflows/**"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest"
+      ],
+      "automerge": true,
+      "platformAutomerge": false
     }
   ]
 }

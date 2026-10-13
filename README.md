@@ -124,25 +124,31 @@ flowchart TD
 
 `@v1` follows the latest `v1.x.y` release. To pin exactly, use a full commit SHA.
 
-[`scripts/install.sh`](scripts/install.sh) pins the `unreal-agent-runner` and nono versions and their
-SHA-256 sums.
+[`scripts/install.sh`](scripts/install.sh) pins the `unreal-agent-runner` and nono release tags and
+the SHA-256 sum of each architecture's download.
 
 ## Updating pinned versions
 
-Renovate opens a PR when Unreal Agent or nono has a new release. The PR changes only the version.
-The `Install check` workflow fails on that PR until the SHA-256 sums match the new release.
-If it fails with curl exit code 22 (HTTP error), the release renamed its files. Update the download
-URL in `scripts/install.sh` too. Unreal Agent did this between v0.2.0 and v0.3.1.
+Renovate opens a PR when Unreal Agent, nono, or a GitHub Action has a new release. For Unreal Agent
+and nono it updates the tag and both SHA-256 sums in `scripts/install.sh`. Renovate waits 3 days
+after each release. It merges minor and patch updates on its own once `Install check` passes on
+both architectures. Review and merge major updates by hand.
 
-1. Open the release named in the Renovate PR.
-2. Copy the `linux_amd64` and `linux_arm64` sums from `SHA256SUMS` (Unreal Agent) or `SHA256SUMS.txt` (nono).
-3. Paste them into the `amd64` and `arm64` branches of the `case` block in `scripts/install.sh`, on the PR branch.
-4. Wait for `Install check` to pass on both architectures, then merge the PR.
-5. Create the next `v1.x.y` release from `main` and publish it to GitHub Marketplace.
-   The `Move major tag` workflow then moves `v1` to it.
+If `Install check` fails with curl exit code 22 (HTTP error), the release renamed its files. Update
+the asset name in the `scripts/install.sh` table on the PR branch. Unreal Agent did this between
+v0.2.0 and v0.3.1.
 
-Workflows that use `@v1` get a change only after step 5. This also applies to Renovate PRs for
-`actions/checkout` and `actions/upload-artifact` in `action.yml`.
+## Releases
+
+When a merged Renovate PR changes `action.yml`, `scripts/`, or `defaults/`, the `Release` workflow
+publishes the next patch release (for example `v1.1.0` → `v1.1.1`) and moves `v1` to it.
+
+Release other changes by hand:
+
+1. Create the next `v1.x.y` release from `main` and publish it to GitHub Marketplace.
+2. The `Move major tag` workflow then moves `v1` to it.
+
+Workflows that use `@v1` get a change only after its release.
 
 ## License
 
