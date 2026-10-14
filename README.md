@@ -47,25 +47,42 @@ The action checks out the PR head itself. Do not add a separate checkout step.
 hostile personas: Saboteur, New Hire, and Security Auditor. Each persona reports at least one
 finding, and a finding that two or more personas raise moves up one severity level. The adversarial
 review posts its own comment and its own `unreal-agent-review-<PR>-adversarial` artifact. The action
-uses fixed paths under `$RUNNER_TEMP`, so run each mode in its own job, for example with a matrix:
+uses fixed paths under `$RUNNER_TEMP`, so run each mode in its own job. To keep the adversarial
+review from repeating the standard review, run it after the standard job and pass the standard
+review with `prior-review`:
 
 ```yaml
 jobs:
   review:
-    strategy:
-      fail-fast: false
-      matrix:
-        mode: [standard, adversarial]
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     concurrency:
-      group: unreal-agent-review-${{ github.event.pull_request.number }}-${{ matrix.mode }}
+      group: unreal-agent-review-${{ github.event.pull_request.number }}
       cancel-in-progress: true
     steps:
       - uses: ianchov/unreal-agent-pr-review-action@v1
         with:
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
-          review-mode: ${{ matrix.mode }}
+  adversarial:
+    needs: review
+    # Also runs after a failed standard review, then without an earlier review.
+    if: ${{ !cancelled() && (needs.review.result == 'success' || needs.review.result == 'failure') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    concurrency:
+      group: unreal-agent-review-${{ github.event.pull_request.number }}-adversarial
+      cancel-in-progress: true
+    steps:
+      - uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: unreal-agent-review-${{ github.event.pull_request.number }}
+          path: ${{ runner.temp }}/standard-review
+      - uses: ianchov/unreal-agent-pr-review-action@v1
+        with:
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          review-mode: adversarial
+          prior-review: ${{ runner.temp }}/standard-review/review.md
 ```
 
 The adversarial prompt adapts the
@@ -82,6 +99,7 @@ by ekreloff (MIT). See [defaults/adversarial/LICENSE](defaults/adversarial/LICEN
 | `review-timeout-minutes` | `40` | Time limit for all review rounds. The runner has no timeout for each model request. |
 | `diff-exclude` | empty | Extra paths to leave out of the diff, one git pathspec per line, for example `app/staticfiles`. Common lockfiles are always left out. |
 | `review-mode` | `standard` | `standard` or `adversarial`. Each mode posts its own comment and artifact. Run each mode in its own job. |
+| `prior-review` | empty | Path to an earlier review of the same PR, for example the standard review's `review.md`. The review then reports only defects that the earlier review does not report, and the reviewer check rejects repeats. |
 
 ## Outputs
 
@@ -139,7 +157,8 @@ flowchart TD
 - **Trusted inputs come from the base branch.** The prompt, criteria, and `AGENTS.md` are read
   with `git show $BASE_SHA:...`, so a PR cannot weaken its own review.
 - **Author text is data, not task.** The PR title and description go into read-only files.
-  The task text only names their paths and marks them untrusted.
+  The task text only names their paths and marks them untrusted. An earlier review from
+  `prior-review` is treated the same way, because its author read the PR text.
 - **Four directories.** The agent's workspace and the inputs are read-only. The session store is
   the only writable grant besides `/tmp`. The task, criteria, logs, and review sit in a directory
   the sandbox cannot see, so the agent cannot change anything a later step trusts.

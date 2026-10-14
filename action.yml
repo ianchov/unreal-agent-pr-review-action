@@ -26,8 +26,14 @@ inputs:
   review-mode:
     description: >-
       Review to run: "standard" or "adversarial". Each mode posts its own PR comment and artifact.
-      To run both, use one job per mode, for example a matrix.
+      To run both, use one job per mode. Pass the first review to the second with prior-review.
     default: standard
+  prior-review:
+    description: >-
+      Path to an earlier review of the same pull request, for example the standard review's review.md.
+      This review then reports only defects that the earlier review does not report.
+      Empty, or a missing or empty file, means no earlier review.
+    default: ""
 
 outputs:
   status:
@@ -70,6 +76,7 @@ runs:
         HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         DIFF_EXCLUDE: ${{ inputs.diff-exclude }}
         PROMPT_DIR: ${{ steps.gate.outputs.prompt-dir }}
+        PRIOR_REVIEW: ${{ inputs.prior-review }}
       run: bash "$GITHUB_ACTION_PATH/scripts/prepare.sh"
     - id: review
       if: steps.gate.outputs.skipped == 'false'
