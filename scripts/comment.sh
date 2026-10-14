@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# Posts the review as one PR comment and updates that comment on later runs.
+# Posts the review as one PR comment per review mode and updates that comment on later runs.
 set -euo pipefail
 
 trusted="$RUNNER_TEMP/unreal-agent"
-marker='<!-- unreal-agent-pr-review -->'
+# MARKER_SUFFIX (from gate.sh) gives each review mode its own comment.
+marker="<!-- unreal-agent-pr-review${MARKER_SUFFIX} -->"
 {
   echo "$marker"
-  echo "### Unreal Agent review (\`${MODEL}\`, commit ${HEAD_SHA:0:7})"
+  echo "### ${TITLE} (\`${MODEL}\`, commit ${HEAD_SHA:0:7})"
   echo
   echo "_$(cat "$trusted/review-status.txt")_"
   echo

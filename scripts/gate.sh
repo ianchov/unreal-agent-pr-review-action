@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Decides whether this PR gets a review and validates the inputs before any download.
+# Decides whether this PR gets a review, validates the inputs before any download, and sets the names for the review mode.
 # Fork PRs get no secrets, Dependabot PRs get no Actions secrets, and drafts are still changing.
 set -euo pipefail
 
@@ -25,4 +25,17 @@ esac
 for name in MAX_REVIEW_ROUNDS REVIEW_TIMEOUT_MINUTES; do
   [[ "${!name}" =~ ^[1-9][0-9]*$ ]] || { echo "::error::$name must be a positive integer, got '${!name}'."; exit 1; }
 done
+
+# Names for each review mode. standard keeps the names it had before modes existed, so existing
+# comments, artifacts, and custom prompt files still apply.
+case "$REVIEW_MODE" in
+  standard) prompt_dir="" suffix="" title="Unreal Agent review" ;;
+  adversarial) prompt_dir="adversarial/" suffix="-adversarial" title="Unreal Agent adversarial review" ;;
+  *) echo "::error::review-mode must be standard or adversarial, got '$REVIEW_MODE'."; exit 1 ;;
+esac
+{
+  echo "prompt-dir=$prompt_dir"
+  echo "suffix=$suffix"
+  echo "title=$title"
+} >> "$GITHUB_OUTPUT"
 echo "skipped=false" >> "$GITHUB_OUTPUT"

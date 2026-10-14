@@ -43,8 +43,10 @@ from_base() { # repository path, fallback file, destination
     cp "$2" "$3"
   fi
 }
-from_base .github/unreal-agent/pr-review.md "$defaults/pr-review.md" "$trusted/pr-review.md"
-from_base .github/unreal-agent/review-criteria.md "$defaults/review-criteria.md" "$trusted/review-criteria.md"
+# PROMPT_DIR (from gate.sh) is empty for the standard review and "adversarial/" for the adversarial
+# one, so each mode reads its own prompt and criteria. Both modes use the same AGENTS.md.
+from_base ".github/unreal-agent/${PROMPT_DIR}pr-review.md" "$defaults/${PROMPT_DIR}pr-review.md" "$trusted/pr-review.md"
+from_base ".github/unreal-agent/${PROMPT_DIR}review-criteria.md" "$defaults/${PROMPT_DIR}review-criteria.md" "$trusted/review-criteria.md"
 from_base AGENTS.md "$defaults/AGENTS.md" "$inputs/AGENTS.md"
 
 # The PR title and description are author-written. They go to read-only files, not into

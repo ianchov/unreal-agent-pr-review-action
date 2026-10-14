@@ -41,6 +41,37 @@ jobs:
 
 The action checks out the PR head itself. Do not add a separate checkout step.
 
+### Adversarial review
+
+`review-mode: adversarial` runs a second kind of review. The agent reviews the change as three
+hostile personas: Saboteur, New Hire, and Security Auditor. Each persona reports at least one
+finding, and a finding that two or more personas raise moves up one severity level. The adversarial
+review posts its own comment and its own `unreal-agent-review-<PR>-adversarial` artifact. The action
+uses fixed paths under `$RUNNER_TEMP`, so run each mode in its own job, for example with a matrix:
+
+```yaml
+jobs:
+  review:
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [standard, adversarial]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    concurrency:
+      group: unreal-agent-review-${{ github.event.pull_request.number }}-${{ matrix.mode }}
+      cancel-in-progress: true
+    steps:
+      - uses: ianchov/unreal-agent-pr-review-action@v1
+        with:
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          review-mode: ${{ matrix.mode }}
+```
+
+The adversarial prompt adapts the
+[adversarial-reviewer skill](https://github.com/alirezarezvani/claude-skills/tree/main/engineering-team/skills/adversarial-reviewer)
+by ekreloff (MIT). See [defaults/adversarial/LICENSE](defaults/adversarial/LICENSE).
+
 ## Inputs
 
 | Input | Default | Meaning |
@@ -50,6 +81,7 @@ The action checks out the PR head itself. Do not add a separate checkout step.
 | `max-review-rounds` | `3` | Most agent and reviewer-check rounds per run. |
 | `review-timeout-minutes` | `40` | Time limit for all review rounds. The runner has no timeout for each model request. |
 | `diff-exclude` | empty | Extra paths to leave out of the diff, one git pathspec per line, for example `app/staticfiles`. Common lockfiles are always left out. |
+| `review-mode` | `standard` | `standard` or `adversarial`. Each mode posts its own comment and artifact. Run each mode in its own job. |
 
 ## Outputs
 
@@ -73,10 +105,12 @@ default in [`defaults/`](defaults).
 |---|---|
 | `.github/unreal-agent/pr-review.md` | Review task: inputs, method, output format. |
 | `.github/unreal-agent/review-criteria.md` | Criteria that the reviewer check applies to the review. |
+| `.github/unreal-agent/adversarial/pr-review.md` | Same, for the adversarial review. |
+| `.github/unreal-agent/adversarial/review-criteria.md` | Same, for the adversarial review. |
 | `AGENTS.md` | Repository rules. The agent checks each change against them. |
 
-Edit the prompt and the criteria together. The criteria must match the output format that the prompt
-asks for. Changes take effect only after they merge into the base branch.
+Edit the prompt and the criteria of a review mode together. The criteria must match the output
+format that the prompt asks for. Changes take effect only after they merge into the base branch.
 
 ## How it works
 
@@ -94,8 +128,10 @@ flowchart TD
     P --> L[Upload JSONL logs as artifact]
 ```
 
-- **One comment.** The action finds its own comment by a hidden marker and updates it on each push.
-- **Logs.** All JSONL event logs and the final review go to the `unreal-agent-review-<PR>` artifact.
+- **One comment per review mode.** The action finds its own comment by a hidden marker and updates
+  it on each push.
+- **Logs.** All JSONL event logs and the final review go to the `unreal-agent-review-<PR>` artifact,
+  or `unreal-agent-review-<PR>-adversarial` for the adversarial review.
   The job summary shows the review and token totals.
 
 ## Security model

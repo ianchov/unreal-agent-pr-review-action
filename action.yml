@@ -23,6 +23,11 @@ inputs:
       Extra paths to leave out of the diff, one git pathspec per line, for example
       "app/staticfiles". Common lockfiles are always left out.
     default: ""
+  review-mode:
+    description: >-
+      Review to run: "standard" or "adversarial". Each mode posts its own PR comment and artifact.
+      To run both, use one job per mode, for example a matrix.
+    default: standard
 
 outputs:
   status:
@@ -44,6 +49,7 @@ runs:
         ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
         MAX_REVIEW_ROUNDS: ${{ inputs.max-review-rounds }}
         REVIEW_TIMEOUT_MINUTES: ${{ inputs.review-timeout-minutes }}
+        REVIEW_MODE: ${{ inputs.review-mode }}
       run: bash "$GITHUB_ACTION_PATH/scripts/gate.sh"
     - if: steps.gate.outputs.skipped == 'false'
       uses: actions/checkout@v7
@@ -63,6 +69,7 @@ runs:
         BASE_SHA: ${{ github.event.pull_request.base.sha }}
         HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         DIFF_EXCLUDE: ${{ inputs.diff-exclude }}
+        PROMPT_DIR: ${{ steps.gate.outputs.prompt-dir }}
       run: bash "$GITHUB_ACTION_PATH/scripts/prepare.sh"
     - id: review
       if: steps.gate.outputs.skipped == 'false'
@@ -81,11 +88,13 @@ runs:
         PR_NUMBER: ${{ github.event.pull_request.number }}
         HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         MODEL: ${{ inputs.model }}
+        MARKER_SUFFIX: ${{ steps.gate.outputs.suffix }}
+        TITLE: ${{ steps.gate.outputs.title }}
       run: bash "$GITHUB_ACTION_PATH/scripts/comment.sh"
     - if: always() && steps.gate.outputs.skipped == 'false'
       uses: actions/upload-artifact@v7
       with:
-        name: unreal-agent-review-${{ github.event.pull_request.number }}
+        name: unreal-agent-review-${{ github.event.pull_request.number }}${{ steps.gate.outputs.suffix }}
         path: |
           ${{ runner.temp }}/unreal-agent/*.jsonl
           ${{ runner.temp }}/unreal-agent/review.md
