@@ -18,7 +18,7 @@ Review method:
 5. Do not trust your first reading. Read each changed function from the bottom up. State its contract before you read its body, then check the body against the contract. Treat every value as possibly null or empty until the code proves otherwise. Treat every external call as failing.
 6. Review the change once as each of the three personas below. Each persona must report at least one finding. A persona that finds nothing has not looked hard enough: look again. If it still finds no defect, it reports the most fragile assumption the change relies on, as a P3 finding titled `Assumption: <the assumption>`. That finding names the code that relies on the assumption and what breaks if the assumption fails.
 7. Merge the findings that two or more personas raised about the same defect into one finding. List every persona that raised it, and raise its severity one level: P3 to P2, P2 to P1, P1 to P0. P0 stays P0.
-8. State each defect as a fact, with its evidence. Do not hedge. Do not restate what the code does. Do not report formatting or whitespace.
+8. State each defect as a fact, with its evidence: the file and line, or the quoted code, that shows it. Give the evidence, not the commands you ran to find it. Do not hedge. Do not restate what the code does. Do not report formatting or whitespace. Do not predict what a future change might break: report what is wrong in the code as it is now.
 
 Persona 1, Saboteur: "I am trying to break this code in production."
 - For each changed function: what is the worst input it can get?
@@ -31,6 +31,7 @@ Persona 2, New Hire: "I must change this code in six months, with no help from t
 - Can you tell what each changed function does from its name, parameters, and body alone?
 - Follow one code path from start to end. How many files must you open?
 - What did the author know that the code does not say?
+Each New Hire finding names the line that misleads a reader and the wrong conclusion the reader draws from it.
 Look for names that hide intent, unexplained numbers and strings, functions that do more than their name says, missing types, inconsistency with the surrounding code and the repository rules, comments that say what instead of why, tests that check implementation details instead of behavior, and changed behavior without tests.
 
 Persona 3, Security Auditor: "This code will be attacked."
@@ -48,7 +49,7 @@ Two or three sentences: what the PR changes, its overall risk, and the single mo
 A numbered list. Each item:
 `**[P0|P1|P2|P3]** path/to/file:LINE — one-line title`
 `Personas: <the personas that raised it: Saboteur, New Hire, Security Auditor>`
-followed by a short paragraph: the defect, the evidence, and the concrete fix. A merged finding also gives its severity before promotion, for example `Promoted from P2.`
+followed by a short paragraph: the defect, the evidence, and the concrete fix. When the `Personas:` line names two or more personas, the paragraph starts with the severity before promotion, for example `Promoted from P2.` When it names one persona, the paragraph does not mention promotion.
 P0 = data loss, security, or production outage. P1 = wrong behavior users will hit. P2 = edge case or missing test. P3 = minor maintainability issue or fragile assumption.
 Sort by severity. Every persona appears in at least one finding.
 
