@@ -147,7 +147,9 @@ flowchart TD
 ```
 
 - **One comment per review mode.** The action finds its own comment by a hidden marker and updates
-  it on each push.
+  it on each push. When a run starts, it adds a "Reviewing commit …" note under the title of the
+  existing comment, so the older review is not read as current. The new review replaces the note.
+  If the run is cancelled, the note stays, because the review is still for an older commit.
 - **Logs.** All JSONL event logs and the final review go to the `unreal-agent-review-<PR>` artifact,
   or `unreal-agent-review-<PR>-adversarial` for the adversarial review.
   The job summary shows the review and token totals.
