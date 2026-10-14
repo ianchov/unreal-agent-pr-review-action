@@ -58,7 +58,8 @@ for round in $(seq 1 "$MAX_REVIEW_ROUNDS"); do
   run_agent "$trusted/reviewer-request.json" "$trusted/reviewer-$round.jsonl" || true
   echo "::endgroup::"
   final_answer "$trusted/reviewer-$round.jsonl" > "$trusted/verdict.md" || true
-  case "$(head -n 1 "$trusted/verdict.md" | tr -d '*` \r')" in
+  # The verdict is the last non-empty line, so the reviewer decides after it has checked every criterion.
+  case "$(awk 'NF { line = $0 } END { print line }' "$trusted/verdict.md" | tr -d '*` \r')" in
     VERDICT:ACCEPT) status="Passed the reviewer check."; break ;;
     VERDICT:RETRY) status="Did not pass the reviewer check within ${MAX_REVIEW_ROUNDS} rounds." ;;
     *) status="Not verified: the reviewer check did not return a verdict."; break ;;

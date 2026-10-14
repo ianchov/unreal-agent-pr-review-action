@@ -71,8 +71,8 @@ EOF
 cat > "$trusted/reviewer-system.md" <<'EOF'
 You check a code review against acceptance criteria. You have no tools and cannot read files.
 Judge the review only from its text against the criteria. Do not try to verify the code.
-Reply with `VERDICT: ACCEPT` or `VERDICT: RETRY` on the first line and nothing before it.
-After `VERDICT: RETRY`, list each failed criterion and the change the review needs.
+Check each criterion first. List each failed criterion and the change the review needs, or write that every criterion holds.
+End with `VERDICT: ACCEPT` or `VERDICT: RETRY` on the last line and nothing after it.
 EOF
 
 # Bash runs inside this sandbox too. The real ANTHROPIC_API_KEY stays in the nono proxy:
