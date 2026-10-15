@@ -49,14 +49,25 @@ inputs:
   skip-renovate:
     description: Skip pull requests opened by Renovate (renovate[bot]).
     default: "true"
+  skip-reason:
+    description: >-
+      Skip this review and mark this mode's existing comment as not reviewed for this commit, with
+      this reason. For example, skip the adversarial review when the standard review's verdict is
+      not "Ready to merge". Empty means review.
+    default: ""
 
 outputs:
   status:
     description: Reviewer-check result, for example "Passed the reviewer check.". Empty when the PR was skipped.
     value: ${{ steps.review.outputs.status }}
   skipped:
-    description: "\"true\" when the PR was skipped: draft, fork, Dependabot, or Renovate."
+    description: "\"true\" when the PR was skipped: draft, fork, Dependabot, Renovate, or skip-reason."
     value: ${{ steps.gate.outputs.skipped }}
+  verdict:
+    description: >-
+      The review's verdict line: "Ready to merge", "Merge after fixes", or "Needs rework".
+      Empty when the PR was skipped or the review has no such line.
+    value: ${{ steps.review.outputs.verdict }}
 
 runs:
   using: composite
@@ -78,10 +89,11 @@ runs:
         MAX_REVIEW_ROUNDS: ${{ inputs.max-review-rounds }}
         REVIEW_TIMEOUT_MINUTES: ${{ inputs.review-timeout-minutes }}
         REVIEW_MODE: ${{ inputs.review-mode }}
+        SKIP_REASON: ${{ inputs.skip-reason }}
       run: bash "$GITHUB_ACTION_PATH/scripts/gate.sh"
-    # Marks this mode's existing comment as outdated while the new commit is reviewed.
-    # A failed note must not stop the review.
-    - if: steps.gate.outputs.skipped == 'false'
+    # Marks this mode's existing comment as outdated: a new commit is being reviewed, or this
+    # commit is not reviewed (skip-reason). A failed note must not stop the review.
+    - if: steps.gate.outputs.skipped == 'false' || steps.gate.outputs.skip-note != ''
       continue-on-error: true
       shell: bash
       env:
@@ -89,6 +101,7 @@ runs:
         PR_NUMBER: ${{ github.event.pull_request.number }}
         HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         MARKER_SUFFIX: ${{ steps.gate.outputs.suffix }}
+        SKIP_NOTE: ${{ steps.gate.outputs.skip-note }}
       run: bash "$GITHUB_ACTION_PATH/scripts/comment.sh" pending
     - if: steps.gate.outputs.skipped == 'false'
       uses: actions/checkout@v7

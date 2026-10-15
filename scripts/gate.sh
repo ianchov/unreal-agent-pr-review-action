@@ -56,6 +56,17 @@ esac
   echo "prompt-dir=$prompt_dir"
   echo "suffix=$suffix"
   echo "title=$title"
+} >> "$GITHUB_OUTPUT"
+
+# A caller-given skip-reason skips the review, for example an adversarial review after a standard
+# review that asks for changes. Unlike the skips above, the comment step then marks this mode's old
+# comment with the reason, so its review is not read as the review of this commit.
+if [ -n "$SKIP_REASON" ]; then
+  echo "::notice::Unreal Agent review skipped: $SKIP_REASON"
+  { echo "skipped=true"; echo "skip-note=$SKIP_REASON"; } >> "$GITHUB_OUTPUT"
+  exit 0
+fi
+{
   echo "model=$model"
   echo "llm-domain=$domain"
   echo "llm-upstream=$upstream"

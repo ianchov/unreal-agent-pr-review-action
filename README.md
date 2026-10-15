@@ -68,9 +68,10 @@ that provider in its own input. `model` uses the provider's model names. It defa
 hostile personas: Saboteur, New Hire, and Security Auditor. Each persona reports at least one
 finding, and a finding that two or more personas raise moves up one severity level. The adversarial
 review posts its own comment and its own `unreal-agent-review-<PR>-adversarial` artifact. The action
-uses fixed paths under `$RUNNER_TEMP`, so run each mode in its own job. To keep the adversarial
-review from repeating the standard review, run it after the standard job and pass the standard
-review with `prior-review`:
+uses fixed paths under `$RUNNER_TEMP`, so run each mode in its own job. The example below runs the
+adversarial review only after the standard review says `Ready to merge`, and passes the standard
+review with `prior-review` so the adversarial review does not repeat it. For any other verdict,
+`skip-reason` skips the adversarial review and marks its old comment as not reviewed for this commit:
 
 ```yaml
 jobs:
@@ -80,13 +81,15 @@ jobs:
     concurrency:
       group: unreal-agent-review-${{ github.event.pull_request.number }}
       cancel-in-progress: true
+    outputs:
+      verdict: ${{ steps.review.outputs.verdict }}
     steps:
-      - uses: ianchov/unreal-agent-pr-review-action@v1
+      - id: review
+        uses: ianchov/unreal-agent-pr-review-action@v1
         with:
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
   adversarial:
     needs: review
-    # Also runs after a failed standard review, then without an earlier review.
     if: ${{ !cancelled() && (needs.review.result == 'success' || needs.review.result == 'failure') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 60
@@ -94,7 +97,8 @@ jobs:
       group: unreal-agent-review-${{ github.event.pull_request.number }}-adversarial
       cancel-in-progress: true
     steps:
-      - uses: actions/download-artifact@v8
+      - if: needs.review.outputs.verdict == 'Ready to merge'
+        uses: actions/download-artifact@v8
         continue-on-error: true
         with:
           name: unreal-agent-review-${{ github.event.pull_request.number }}
@@ -104,6 +108,12 @@ jobs:
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           review-mode: adversarial
           prior-review: ${{ runner.temp }}/standard-review/review.md
+          skip-reason: >-
+            ${{ needs.review.outputs.verdict != 'Ready to merge'
+            && (needs.review.outputs.verdict != ''
+              && format('the standard review asks for changes ({0})', needs.review.outputs.verdict)
+              || 'the standard review gave no verdict')
+            || '' }}
 ```
 
 The adversarial prompt adapts the
@@ -125,13 +135,15 @@ by ekreloff (MIT). See [defaults/adversarial/LICENSE](defaults/adversarial/LICEN
 | `review-mode` | `standard` | `standard` or `adversarial`. Each mode posts its own comment and artifact. Run each mode in its own job. |
 | `prior-review` | empty | Path to an earlier review of the same PR, for example the standard review's `review.md`. The review then reports only defects that the earlier review does not report, and the reviewer check rejects repeats. |
 | `skip-renovate` | `true` | Skip pull requests opened by Renovate (`renovate[bot]`). |
+| `skip-reason` | empty | Skip this review and mark this mode's old comment as not reviewed for this commit, with this reason. |
 
 ## Outputs
 
 | Output | Meaning |
 |---|---|
 | `status` | Reviewer-check result, for example `Passed the reviewer check.`. Empty when the PR was skipped. |
-| `skipped` | `true` when the PR was skipped: draft, fork, Dependabot, or Renovate. |
+| `skipped` | `true` when the PR was skipped: draft, fork, Dependabot, Renovate, or `skip-reason`. |
+| `verdict` | The review's verdict: `Ready to merge`, `Merge after fixes`, or `Needs rework`. Empty when skipped or when the review has no such line. |
 
 ## Runner requirements
 
@@ -174,7 +186,8 @@ flowchart TD
 - **One comment per review mode.** The action finds its own comment by a hidden marker and updates
   it on each push. When a run starts, it adds a "Reviewing commit …" note under the title of the
   existing comment, so the older review is not read as current. The new review replaces the note.
-  If the run is cancelled, the note stays, because the review is still for an older commit.
+  If the run is cancelled, the note stays, because the review is still for an older commit. A run
+  skipped with `skip-reason` adds "Not reviewed for commit …" and the reason instead.
 - **Logs.** All JSONL event logs and the final review go to the `unreal-agent-review-<PR>` artifact,
   or `unreal-agent-review-<PR>-adversarial` for the adversarial review.
   The job summary shows the review and token totals.

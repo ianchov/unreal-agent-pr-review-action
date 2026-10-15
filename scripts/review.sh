@@ -72,6 +72,15 @@ done
 [ "$status" = "Passed the reviewer check." ] || echo "::warning::$status"
 echo "$status" > "$trusted/review-status.txt"
 echo "status=$status" >> "$GITHUB_OUTPUT"
+# The verdict line under "## Verdict", for callers that run a second review only after this one,
+# for example the adversarial review only after "Ready to merge". Anything else gives an empty verdict.
+verdict=$(awk '/^## Verdict/ { found = 1; next } found && NF { print; exit }' "$trusted/review.md" \
+  | tr -d '`*' | sed 's/[[:space:].]*$//; s/^[[:space:]]*//')
+case "$verdict" in
+  "Ready to merge" | "Merge after fixes" | "Needs rework") ;;
+  *) verdict="" ;;
+esac
+echo "verdict=$verdict" >> "$GITHUB_OUTPUT"
 
 # Token totals over every agent and reviewer call; input includes cache reads and writes.
 usage=$(cat "$trusted"/*.jsonl | jq -Rnr '[inputs | fromjson? | select(.Kind == "model_response") | .Data.Response.Usage]
