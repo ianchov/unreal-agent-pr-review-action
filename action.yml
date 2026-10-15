@@ -96,8 +96,8 @@ runs:
         REVIEW_MODE: ${{ inputs.review-mode }}
         SKIP_REASON: ${{ inputs.skip-reason }}
       run: bash "$GITHUB_ACTION_PATH/scripts/gate.sh"
-    # Marks this mode's existing comment as outdated: a new commit is being reviewed, or this
-    # commit is not reviewed (skip-reason). A failed note must not stop the review.
+    # Rewrites this mode's existing comment for the new commit: being reviewed, or not reviewed
+    # (skip-reason), with the last finished review collapsed. A failed rewrite must not stop the review.
     - if: steps.gate.outputs.skipped == 'false' || steps.gate.outputs.skip-note != ''
       continue-on-error: true
       shell: bash
@@ -107,6 +107,7 @@ runs:
         HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         MARKER_SUFFIX: ${{ steps.gate.outputs.suffix }}
         SKIP_NOTE: ${{ steps.gate.outputs.skip-note }}
+        TITLE: ${{ steps.gate.outputs.title }}
       run: bash "$GITHUB_ACTION_PATH/scripts/comment.sh" pending
     - if: steps.gate.outputs.skipped == 'false'
       uses: actions/checkout@v7

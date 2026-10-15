@@ -296,51 +296,94 @@ def test_no_calls_gives_zero_tokens_and_no_cost():
     )
 
 
-# Comment note
+# Outdated comment
 
 
-BODY = (
-    "<!-- unreal-agent-pr-review-adversarial -->\n"
-    "### Unreal Agent adversarial review (`m`, commit aaaaaaa)\n"
-    "\n"
+TITLE = "Unreal Agent adversarial review"
+REVIEW = (
     "_Passed the reviewer check._\n"
+    "\n"
+    "## Findings\n"
+    "1. **[P2]** a.py:1 — quoted text: > **Reviewing commit 1234567.** stays\n"
+    "\n"
+    "<sub>Tokens: 3 model calls.</sub>\n"
+)
+POSTED = (
+    "<!-- unreal-agent-pr-review-adversarial -->\n"
+    "### Unreal Agent adversarial review (`claude-sonnet-5-5`, commit c15fbcb)\n"
+    "\n" + REVIEW
 )
 
 
-def test_note_goes_under_the_title():
-    marked = ur.mark_comment(BODY, ur.pending_note("bbbbbbb1", ""))
+def previous_review(comment: str) -> str:
+    """The collapsed part of an outdated comment, without its opening and closing tags."""
+    start = comment.index("<details><summary>")
+    return comment[start:].split("\n", 1)[1].rsplit("</details>", 1)[0]
 
-    lines = marked.splitlines()
-    assert lines[2] == (
-        "> **Reviewing commit bbbbbbb.** The review below is for the older commit in the title."
-        " It updates when this run finishes."
+
+def test_running_review_names_the_new_commit_and_collapses_the_old_review():
+    comment = ur.outdated_comment(POSTED, TITLE, "c7ff0e1aa", "")
+
+    lines = comment.splitlines()
+    assert lines[0] == "<!-- unreal-agent-pr-review-adversarial -->"
+    assert lines[1] == "### Unreal Agent adversarial review: reviewing commit c7ff0e1"
+    assert "_In progress. The review of c7ff0e1 replaces this comment when it finishes._" in lines
+    assert "<details><summary>Previous review: claude-sonnet-5-5, commit c15fbcb</summary>" in lines
+    assert previous_review(comment).strip() == REVIEW.strip()
+
+
+def test_skipped_review_says_why_above_the_old_review():
+    comment = ur.outdated_comment(
+        POSTED, TITLE, "c7ff0e1aa", "the standard review found a P1 defect"
     )
-    assert lines[:2] + lines[3:] == BODY.splitlines()
+
+    lines = comment.splitlines()
+    assert lines[1] == "### Unreal Agent adversarial review: not run for commit c7ff0e1"
+    assert "_Not reviewed: the standard review found a P1 defect._" in lines
+    assert previous_review(comment).strip() == REVIEW.strip()
 
 
-def test_skip_note_names_the_reason():
-    note = ur.pending_note("ccccccc2", "the standard review asks for changes (Needs rework)")
+def test_markdown_inside_the_collapsed_review_renders():
+    # GitHub renders Markdown inside <details> only after a blank line.
+    comment = ur.outdated_comment(POSTED, TITLE, "c7ff0e1aa", "")
 
-    assert note == (
-        "> **Not reviewed for commit ccccccc:** the standard review asks for changes"
-        " (Needs rework). The review below is for the older commit in the title."
-    )
-
-
-def test_a_new_note_replaces_the_old_one_of_either_kind():
-    body = BODY
-    for sha, reason in [("b" * 8, ""), ("c" * 8, "reason"), ("d" * 8, "")]:
-        body = ur.mark_comment(body, ur.pending_note(sha, reason))
-
-    notes = [line for line in body.splitlines() if line.startswith("> **")]
-    assert notes == [ur.pending_note("d" * 8, "")]
-    assert body.endswith("_Passed the reviewer check._\n")
+    after_summary = comment.split("</summary>\n", 1)[1]
+    assert after_summary.startswith("\n")
+    assert comment.endswith("\n</details>\n")
 
 
-def test_review_text_that_quotes_a_note_is_kept():
-    body = BODY + "\n> **Reviewing commit 1234567.** quoted inside a finding\n"
+def test_later_runs_keep_one_collapsed_review_of_the_last_finished_one():
+    comment = POSTED
+    for sha, reason in [("1" * 8, ""), ("2" * 8, "reason"), ("3" * 8, "")]:
+        comment = ur.outdated_comment(comment, TITLE, sha, reason)
 
-    marked = ur.mark_comment(body, ur.pending_note("e" * 8, ""))
+    assert comment.count("<details>") == 1
+    assert "Previous review: claude-sonnet-5-5, commit c15fbcb" in comment
+    assert comment.splitlines()[1].endswith("reviewing commit 3333333")
+    assert previous_review(comment).strip() == REVIEW.strip()
 
-    assert marked.count("> **Reviewing commit") == 2
-    assert marked.endswith("> **Reviewing commit 1234567.** quoted inside a finding\n")
+
+@pytest.mark.parametrize(
+    "note",
+    [
+        "> **Reviewing commit 9999999.** The review below is for the older commit in the title.",
+        "> **Not reviewed for commit 9999999:** reason. The review below is for the older commit.",
+    ],
+)
+def test_one_line_note_of_older_versions_is_dropped(note):
+    old_style = POSTED.replace("\n\n_Passed", f"\n{note}\n\n_Passed", 1)
+
+    comment = ur.outdated_comment(old_style, TITLE, "c7ff0e1aa", "")
+
+    assert "9999999" not in comment
+    assert previous_review(comment).strip() == REVIEW.strip()
+
+
+def test_comment_without_a_review_title_is_still_collapsed():
+    body = "<!-- unreal-agent-pr-review -->\nSomething else.\n"
+
+    comment = ur.outdated_comment(body, "Unreal Agent review", "c7ff0e1aa", "")
+
+    assert comment.startswith("<!-- unreal-agent-pr-review -->\n### Unreal Agent review: reviewing")
+    assert "<details><summary>Previous review</summary>" in comment
+    assert previous_review(comment).strip() == "Something else."

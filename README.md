@@ -188,10 +188,11 @@ flowchart TD
 ```
 
 - **One comment per review mode.** The action finds its own comment by a hidden marker and updates
-  it on each push. When a run starts, it adds a "Reviewing commit …" note under the title of the
-  existing comment, so the older review is not read as current. The new review replaces the note.
-  If the run is cancelled, the note stays, because the review is still for an older commit. A run
-  skipped with `skip-reason` adds "Not reviewed for commit …" and the reason instead.
+  it on each push. When a run starts, the comment's title changes to "reviewing commit …", and the
+  last finished review moves into a collapsed "Previous review: <model>, commit …" section, so it
+  is not read as the current one. The new review replaces the whole comment. If the run is
+  cancelled, the comment stays like that, because no newer review exists. A run skipped with
+  `skip-reason` titles it "not run for commit …" and gives the reason.
 - **Logs.** All JSONL event logs and the final review go to the `unreal-agent-review-<PR>` artifact,
   or `unreal-agent-review-<PR>-adversarial` for the adversarial review.
   The job summary shows the review and token totals.

@@ -17,7 +17,9 @@ from pathlib import Path
 
 PRICES_PATH = Path(__file__).with_name("anthropic-prices.json")
 REVIEW_VERDICTS = ("Ready to merge", "Merge after fixes", "Needs rework")
-NOTE_PREFIXES = ("> **Reviewing commit ", "> **Not reviewed for commit ")
+PREVIOUS_SUMMARY = "<details><summary>Previous review"
+# The one-line note that versions before v1.8.0 put under the title of an outdated comment.
+OLD_NOTE_PREFIXES = ("> **Reviewing commit ", "> **Not reviewed for commit ")
 
 
 class InputError(Exception):
@@ -196,24 +198,35 @@ def usage_line(event_lines: Iterable[str], model: str, prices: dict) -> str:
     return f"{line} Cost: ${sum(costs):.4f} ({source})."
 
 
-def pending_note(head_sha: str, skip_note: str) -> str:
-    """The note under a comment's title: this commit is being reviewed, or not reviewed and why."""
+def outdated_comment(body: str, title: str, head_sha: str, skip_note: str) -> str:
+    """A posted review comment, rewritten for a newer commit that is being reviewed or skipped.
+
+    The title and status name the new commit. The last finished review stays below, collapsed in
+    one <details> block that names its model and commit. A comment that is already outdated keeps
+    that block, so later runs never nest or lose it. The next posted review replaces all of this.
+    """
+    marker, _, rest = body.partition("\n")
+    commit = head_sha[:7]
     if skip_note:
-        return (
-            f"> **Not reviewed for commit {head_sha[:7]}:** {skip_note}."
-            " The review below is for the older commit in the title."
-        )
-    return (
-        f"> **Reviewing commit {head_sha[:7]}.** The review below is for the older commit"
-        " in the title. It updates when this run finishes."
-    )
+        heading = f"### {title}: not run for commit {commit}"
+        status = f"_Not reviewed: {skip_note}._"
+    else:
+        heading = f"### {title}: reviewing commit {commit}"
+        status = f"_In progress. The review of {commit} replaces this comment when it finishes._"
 
-
-def mark_comment(body: str, note: str) -> str:
-    """The comment with note as its third line, replacing an earlier note there, never stacking."""
-    lines = body.splitlines(keepends=True)
-    keep = 3 if len(lines) > 2 and lines[2].startswith(NOTE_PREFIXES) else 2
-    return "".join(lines[:2]) + note + "\n" + "".join(lines[keep:])
+    start = rest.find(PREVIOUS_SUMMARY)
+    if start >= 0:
+        previous = rest[start:].rstrip("\n")
+    else:
+        lines = rest.splitlines()
+        summary = "Previous review"
+        if lines and lines[0].startswith("### "):
+            match = re.search(r"\(([^()]*)\)\s*$", lines.pop(0))
+            if match:
+                summary += ": " + match.group(1).replace("`", "")
+        content = "\n".join(line for line in lines if not line.startswith(OLD_NOTE_PREFIXES))
+        previous = f"<details><summary>{summary}</summary>\n\n{content.strip()}\n\n</details>"
+    return f"{marker}\n{heading}\n\n{status}\n\n{previous}\n"
 
 
 def main(argv: list[str]) -> int:
@@ -236,13 +249,13 @@ def main(argv: list[str]) -> int:
             model, *files = args
             lines = [line for f in files for line in Path(f).read_text().splitlines()]
             print(usage_line(lines, model, json.loads(PRICES_PATH.read_text())))
-        elif command == "note":
-            head_sha, skip_note = args
-            sys.stdout.write(mark_comment(sys.stdin.read(), pending_note(head_sha, skip_note)))
+        elif command == "outdated":
+            title, head_sha, skip_note = args
+            sys.stdout.write(outdated_comment(sys.stdin.read(), title, head_sha, skip_note))
         else:
             print(
                 f"usage: {Path(__file__).name}"
-                " provider|verdict|severity|reviewer-verdict|usage|note",
+                " provider|verdict|severity|reviewer-verdict|usage|outdated",
                 file=sys.stderr,
             )
             return 2
