@@ -57,5 +57,11 @@ if [ -n "$SKIP_REASON" ]; then
   { echo "skipped=true"; echo "skip-note=$SKIP_REASON"; } >> "$GITHUB_OUTPUT"
   exit 0
 fi
+# A caller-given waiting-for only marks this mode's old comment as waiting for another step of this
+# commit, for example the adversarial comment while the standard review runs. Nothing is reviewed.
+if [ -n "$WAITING_FOR" ]; then
+  { echo "skipped=true"; echo "waiting-for=$WAITING_FOR"; } >> "$GITHUB_OUTPUT"
+  exit 0
+fi
 echo "$provider_settings" >> "$GITHUB_OUTPUT"
 echo "skipped=false" >> "$GITHUB_OUTPUT"

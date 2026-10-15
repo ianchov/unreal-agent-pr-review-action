@@ -138,6 +138,7 @@ by ekreloff (MIT). See [defaults/adversarial/LICENSE](defaults/adversarial/LICEN
 | `prior-review` | empty | Path to an earlier review of the same PR, for example the standard review's `review.md`. The review then reports only defects that the earlier review does not report, and the reviewer check rejects repeats. |
 | `skip-renovate` | `true` | Skip pull requests opened by Renovate (`renovate[bot]`). |
 | `skip-reason` | empty | Skip this review and mark this mode's old comment as not reviewed for this commit, with this reason. |
+| `waiting-for` | empty | Do not review. Only mark this mode's old comment as "waiting for commit …" for this step, for example `the standard review`. The reusable workflow uses it in the standard job for the adversarial comment. |
 
 ## Outputs
 
@@ -192,7 +193,8 @@ flowchart TD
   last finished review moves into a collapsed "Previous review: <model>, commit …" section, so it
   is not read as the current one. The new review replaces the whole comment. If the run is
   cancelled, the comment stays like that, because no newer review exists. A run skipped with
-  `skip-reason` titles it "not run for commit …" and gives the reason.
+  `skip-reason` titles it "not run for commit …" and gives the reason, and a run with `waiting-for`
+  titles it "waiting for commit …".
 - **Logs.** All JSONL event logs and the final review go to the `unreal-agent-review-<PR>` artifact,
   or `unreal-agent-review-<PR>-adversarial` for the adversarial review.
   The job summary shows the review and token totals.

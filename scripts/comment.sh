@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Posts the review as one PR comment per review mode and updates that comment on later runs.
 # With the argument "pending", it only rewrites an existing comment for a newer commit: the title
-# names that commit and says it is being reviewed, or (SKIP_NOTE set) not reviewed and why. The last
-# finished review stays below it, collapsed. The next posted review replaces the whole comment.
+# names that commit and says it is being reviewed, not reviewed and why (SKIP_NOTE), or waiting for
+# another step (WAITING_FOR). The last finished review stays below it, collapsed. The next posted
+# review replaces the whole comment.
 set -euo pipefail
 
 trusted="$RUNNER_TEMP/unreal-agent"
@@ -15,7 +16,8 @@ comment_id=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/c
 if [ "${1:-}" = pending ]; then
   [ -n "$comment_id" ] || exit 0
   gh api "repos/${GITHUB_REPOSITORY}/issues/comments/${comment_id}" --jq .body \
-    | python3 "$GITHUB_ACTION_PATH/scripts/unreal_review.py" outdated "$TITLE" "$HEAD_SHA" "${SKIP_NOTE:-}" \
+    | python3 "$GITHUB_ACTION_PATH/scripts/unreal_review.py" outdated \
+      "$TITLE" "$HEAD_SHA" "${SKIP_NOTE:-}" "${WAITING_FOR:-}" \
     > "$trusted/pending-comment.md"
   gh api --method PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${comment_id}" -F body=@"$trusted/pending-comment.md" > /dev/null
   exit 0

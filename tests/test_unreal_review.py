@@ -343,6 +343,30 @@ def test_skipped_review_says_why_above_the_old_review():
     assert previous_review(comment).strip() == REVIEW.strip()
 
 
+def test_waiting_review_names_the_new_commit_and_what_it_waits_for():
+    comment = ur.outdated_comment(POSTED, TITLE, "c7ff0e1aa", "", "the standard review")
+
+    lines = comment.splitlines()
+    assert lines[1] == "### Unreal Agent adversarial review: waiting for commit c7ff0e1"
+    assert "_Waiting for the standard review of commit c7ff0e1._" in lines
+    assert previous_review(comment).strip() == REVIEW.strip()
+
+
+def test_skip_reason_wins_over_waiting():
+    comment = ur.outdated_comment(POSTED, TITLE, "c7ff0e1aa", "a reason", "the standard review")
+
+    assert comment.splitlines()[1].endswith("not run for commit c7ff0e1")
+
+
+def test_waiting_then_reviewing_keeps_one_collapsed_review():
+    comment = ur.outdated_comment(POSTED, TITLE, "1" * 8, "", "the standard review")
+    comment = ur.outdated_comment(comment, TITLE, "1" * 8, "")
+
+    assert comment.count("<details>") == 1
+    assert comment.splitlines()[1].endswith("reviewing commit 1111111")
+    assert previous_review(comment).strip() == REVIEW.strip()
+
+
 def test_markdown_inside_the_collapsed_review_renders():
     # GitHub renders Markdown inside <details> only after a blank line.
     comment = ur.outdated_comment(POSTED, TITLE, "c7ff0e1aa", "")

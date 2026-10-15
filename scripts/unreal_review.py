@@ -198,8 +198,11 @@ def usage_line(event_lines: Iterable[str], model: str, prices: dict) -> str:
     return f"{line} Cost: ${sum(costs):.4f} ({source})."
 
 
-def outdated_comment(body: str, title: str, head_sha: str, skip_note: str) -> str:
-    """A posted review comment, rewritten for a newer commit that is being reviewed or skipped.
+def outdated_comment(
+    body: str, title: str, head_sha: str, skip_note: str, waiting_for: str = ""
+) -> str:
+    """A posted review comment, rewritten for a newer commit: skipped (skip_note), waiting for
+    another step (waiting_for), or else being reviewed.
 
     The title and status name the new commit. The last finished review stays below, collapsed in
     one <details> block that names its model and commit. A comment that is already outdated keeps
@@ -210,6 +213,9 @@ def outdated_comment(body: str, title: str, head_sha: str, skip_note: str) -> st
     if skip_note:
         heading = f"### {title}: not run for commit {commit}"
         status = f"_Not reviewed: {skip_note}._"
+    elif waiting_for:
+        heading = f"### {title}: waiting for commit {commit}"
+        status = f"_Waiting for {waiting_for} of commit {commit}._"
     else:
         heading = f"### {title}: reviewing commit {commit}"
         status = f"_In progress. The review of {commit} replaces this comment when it finishes._"
@@ -250,8 +256,10 @@ def main(argv: list[str]) -> int:
             lines = [line for f in files for line in Path(f).read_text().splitlines()]
             print(usage_line(lines, model, json.loads(PRICES_PATH.read_text())))
         elif command == "outdated":
-            title, head_sha, skip_note = args
-            sys.stdout.write(outdated_comment(sys.stdin.read(), title, head_sha, skip_note))
+            title, head_sha, skip_note, *waiting_for = args
+            sys.stdout.write(
+                outdated_comment(sys.stdin.read(), title, head_sha, skip_note, *waiting_for)
+            )
         else:
             print(
                 f"usage: {Path(__file__).name}"

@@ -55,6 +55,12 @@ inputs:
       this reason. For example, skip the adversarial review when the standard review found a P0
       or P1 defect. Empty means review.
     default: ""
+  waiting-for:
+    description: >-
+      Do not review. Only mark this mode's existing comment as waiting for this step of the current
+      commit, for example "the standard review", with the last finished review collapsed. A later
+      run of this mode replaces the mark. Empty means review.
+    default: ""
 
 outputs:
   status:
@@ -95,10 +101,14 @@ runs:
         REVIEW_TIMEOUT_MINUTES: ${{ inputs.review-timeout-minutes }}
         REVIEW_MODE: ${{ inputs.review-mode }}
         SKIP_REASON: ${{ inputs.skip-reason }}
+        WAITING_FOR: ${{ inputs.waiting-for }}
       run: bash "$GITHUB_ACTION_PATH/scripts/gate.sh"
-    # Rewrites this mode's existing comment for the new commit: being reviewed, or not reviewed
-    # (skip-reason), with the last finished review collapsed. A failed rewrite must not stop the review.
-    - if: steps.gate.outputs.skipped == 'false' || steps.gate.outputs.skip-note != ''
+    # Rewrites this mode's existing comment for the new commit: being reviewed, not reviewed
+    # (skip-reason), or waiting (waiting-for), with the last finished review collapsed. A failed
+    # rewrite must not stop the review.
+    - if: >-
+        steps.gate.outputs.skipped == 'false' || steps.gate.outputs.skip-note != ''
+        || steps.gate.outputs.waiting-for != ''
       continue-on-error: true
       shell: bash
       env:
@@ -107,6 +117,7 @@ runs:
         HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         MARKER_SUFFIX: ${{ steps.gate.outputs.suffix }}
         SKIP_NOTE: ${{ steps.gate.outputs.skip-note }}
+        WAITING_FOR: ${{ steps.gate.outputs.waiting-for }}
         TITLE: ${{ steps.gate.outputs.title }}
       run: bash "$GITHUB_ACTION_PATH/scripts/comment.sh" pending
     - if: steps.gate.outputs.skipped == 'false'
