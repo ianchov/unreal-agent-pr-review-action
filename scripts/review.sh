@@ -74,8 +74,23 @@ echo "$status" > "$trusted/review-status.txt"
 echo "status=$status" >> "$GITHUB_OUTPUT"
 
 # Token totals over every agent and reviewer call; input includes cache reads and writes.
-cat "$trusted"/*.jsonl | jq -Rnr '[inputs | fromjson? | select(.Kind == "model_response") | .Data.Response.Usage]
-  | "Tokens: \(length) model calls, \(map(.InputTokens) | add // 0) input (\(map(.CachedInputTokens) | add // 0) cache read, \(map(.CacheWriteInputTokens) | add // 0) cache write), \(map(.OutputTokens) | add // 0) output."' > "$trusted/usage.txt"
+usage=$(cat "$trusted"/*.jsonl | jq -Rnr '[inputs | fromjson? | select(.Kind == "model_response") | .Data.Response.Usage]
+  | "Tokens: \(length) model calls, \(map(.InputTokens) | add // 0) input (\(map(.CachedInputTokens) | add // 0) cache read, \(map(.CacheWriteInputTokens) | add // 0) cache write), \(map(.OutputTokens) | add // 0) output."')
+# Cost of the same calls (cost.jq): OpenRouter reports it in each response, and Anthropic is
+# estimated from anthropic-prices.json. Empty when any call cannot be priced, for example on openai.
+cost=$(cat "$trusted"/*.jsonl | jq -Rnr -L "$GITHUB_ACTION_PATH/scripts" \
+  --slurpfile prices "$GITHUB_ACTION_PATH/scripts/anthropic-prices.json" --arg model "$UNREAL_HARNESS_LLM_MODEL" '
+  include "cost";
+  [inputs | fromjson? | select(.Kind == "model_response") | .Data.Response.Usage | call_cost($prices[0]; $model)]
+  | select(length > 0 and all(. != null)) | add')
+if [ -n "$cost" ]; then
+  case "$UNREAL_HARNESS_LLM_PROVIDER" in
+    openrouter) source="reported by OpenRouter" ;;
+    *) source="estimate from Anthropic list prices" ;;
+  esac
+  usage+=$(printf ' Cost: $%.4f (%s).' "$cost" "$source")
+fi
+echo "$usage" > "$trusted/usage.txt"
 cat "$trusted/usage.txt"
 echo "::group::Final review"
 cat "$trusted/review.md"

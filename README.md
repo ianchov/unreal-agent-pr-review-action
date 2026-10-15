@@ -178,6 +178,11 @@ flowchart TD
 - **Logs.** All JSONL event logs and the final review go to the `unreal-agent-review-<PR>` artifact,
   or `unreal-agent-review-<PR>-adversarial` for the adversarial review.
   The job summary shows the review and token totals.
+- **Cost.** The comment's last line shows the tokens and, where possible, the cost of all agent
+  and reviewer calls. OpenRouter reports the cost in each response, including the provider's charge
+  for a BYOK key. For Anthropic it is an estimate from the list prices in
+  [`scripts/anthropic-prices.json`](scripts/anthropic-prices.json); update that file when prices
+  change. Other models and OpenAI show tokens only.
 
 ## Security model
 

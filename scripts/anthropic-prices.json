@@ -1,0 +1,13 @@
+{
+  "_source": "USD per million tokens, global routing. https://docs.claude.com/en/docs/about-claude/pricing (checked 2026-10-15). Prompts over max_prompt_tokens use the next row.",
+  "claude-opus-5-5": [
+    { "input": 4, "cache_write_5m": 5, "cache_write_1h": 8, "cache_read": 0.2, "output": 20 }
+  ],
+  "claude-sonnet-5-5": [
+    { "input": 2, "cache_write_5m": 2.5, "cache_write_1h": 4, "cache_read": 0.1, "output": 10 }
+  ],
+  "claude-haiku-5-5": [
+    { "max_prompt_tokens": 100000, "input": 0.1, "cache_write_5m": 0.125, "cache_write_1h": 0.2, "cache_read": 0.01, "output": 0.5 },
+    { "input": 0.5, "cache_write_5m": 0.625, "cache_write_1h": 1, "cache_read": 0.05, "output": 2.5 }
+  ]
+}
