@@ -91,6 +91,26 @@ def review_verdict(review: str) -> str:
     return verdict if verdict in REVIEW_VERDICTS else ""
 
 
+def review_severity(review: str) -> str:
+    """The most severe finding tag ('P0' to 'P3') in the '## Findings' section.
+
+    'none' when the section has no tagged finding, '' when the review has no such section.
+    Only list items that start with a tag count, not tags quoted in prose or other sections.
+    """
+    lines = review.splitlines()
+    starts = [i for i, line in enumerate(lines) if line.strip() == "## Findings"]
+    if not starts:
+        return ""
+    tags = []
+    for line in lines[starts[0] + 1 :]:
+        if line.startswith("## "):
+            break
+        match = re.match(r"\s*\d+\.\s+\*\*\[P([0-3])\]\*\*", line)
+        if match:
+            tags.append(int(match.group(1)))
+    return f"P{min(tags)}" if tags else "none"
+
+
 def reviewer_verdict(reply: str) -> str:
     """'ACCEPT' or 'RETRY' from the reviewer check's last non-empty line, else ''.
 
@@ -208,6 +228,8 @@ def main(argv: list[str]) -> int:
             print("\n".join(f"{key}={value}" for key, value in settings.items()))
         elif command == "verdict":
             print(review_verdict(Path(args[0]).read_text()))
+        elif command == "severity":
+            print(review_severity(Path(args[0]).read_text()))
         elif command == "reviewer-verdict":
             print(reviewer_verdict(Path(args[0]).read_text()))
         elif command == "usage":
@@ -219,7 +241,8 @@ def main(argv: list[str]) -> int:
             sys.stdout.write(mark_comment(sys.stdin.read(), pending_note(head_sha, skip_note)))
         else:
             print(
-                f"usage: {Path(__file__).name} provider|verdict|reviewer-verdict|usage|note",
+                f"usage: {Path(__file__).name}"
+                " provider|verdict|severity|reviewer-verdict|usage|note",
                 file=sys.stderr,
             )
             return 2

@@ -133,6 +133,51 @@ def test_missing_or_unknown_verdict_is_empty(text):
     assert ur.review_verdict(text) == ""
 
 
+# Highest finding severity
+
+
+FINDINGS = (
+    "## Summary\nMentions a **[P0]** risk in prose only.\n\n"
+    "## Findings\n\n"
+    "1. **[P3]** a.py:1 — minor\n"
+    "2. **[P2]** b.py:2 — edge case\n"
+    "   Quotes `**[P1]**` inside a paragraph, not as a finding tag.\n"
+    "3. **[P3]** c.py:3 — minor\n\n"
+    "## Verdict\nMerge after fixes\n"
+)
+
+
+def test_highest_severity_is_the_most_severe_finding_tag():
+    assert ur.review_severity(FINDINGS) == "P2"
+
+
+def test_severity_ignores_tags_outside_the_findings_section_and_inside_paragraphs():
+    # The P0 in the summary and the quoted P1 in a paragraph do not count.
+    assert ur.review_severity(FINDINGS) not in ("P0", "P1")
+
+
+@pytest.mark.parametrize(
+    ("findings", "severity"),
+    [
+        ("1. **[P1]** x.py:1 — wrong\n2. **[P0]** y.py:2 — data loss\n", "P0"),
+        ("1. **[P1]** x.py:1 — wrong\n", "P1"),
+        ("  10. **[P3]** x.py:1 — tenth item, indented\n", "P3"),
+    ],
+)
+def test_highest_severity_wins_wherever_it_is_listed(findings, severity):
+    review = f"## Summary\ns\n\n## Findings\n{findings}\n## Verdict\nNeeds rework\n"
+    assert ur.review_severity(review) == severity
+
+
+def test_no_findings_is_none():
+    review = "## Summary\ns\n\n## Findings\nNo findings.\n\n## Verdict\nReady to merge\n"
+    assert ur.review_severity(review) == "none"
+
+
+def test_review_without_findings_section_has_no_severity():
+    assert ur.review_severity("Unreal Agent returned something else.\n") == ""
+
+
 # Reviewer check verdict
 
 

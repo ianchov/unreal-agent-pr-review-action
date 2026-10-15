@@ -71,10 +71,13 @@ for round in $(seq 1 "$MAX_REVIEW_ROUNDS"); do
 done
 [ "$status" = "Passed the reviewer check." ] || echo "::warning::$status"
 echo "$status" > "$trusted/review-status.txt"
-echo "status=$status" >> "$GITHUB_OUTPUT"
-# The verdict line under "## Verdict", for callers that run a second review only after this one,
-# for example the adversarial review only after "Ready to merge". Anything else gives an empty verdict.
-echo "verdict=$(python3 "$GITHUB_ACTION_PATH/scripts/unreal_review.py" verdict "$trusted/review.md")" >> "$GITHUB_OUTPUT"
+# The verdict line under "## Verdict" and the most severe finding tag, for callers that run a second
+# review only after this one, for example the adversarial review only without P0 or P1 findings.
+{
+  echo "status=$status"
+  echo "verdict=$(python3 "$GITHUB_ACTION_PATH/scripts/unreal_review.py" verdict "$trusted/review.md")"
+  echo "highest-severity=$(python3 "$GITHUB_ACTION_PATH/scripts/unreal_review.py" severity "$trusted/review.md")"
+} >> "$GITHUB_OUTPUT"
 
 # Token totals over every agent and reviewer call, and their cost when every call can be priced:
 # OpenRouter reports it, and Anthropic is estimated from anthropic-prices.json.

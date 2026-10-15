@@ -69,8 +69,8 @@ hostile personas: Saboteur, New Hire, and Security Auditor. Each persona reports
 finding, and a finding that two or more personas raise moves up one severity level. The adversarial
 review posts its own comment and its own `unreal-agent-review-<PR>-adversarial` artifact. The action
 uses fixed paths under `$RUNNER_TEMP`, so run each mode in its own job. The example below runs the
-adversarial review only after the standard review says `Ready to merge`, and passes the standard
-review with `prior-review` so the adversarial review does not repeat it. For any other verdict,
+adversarial review only when the standard review has a verdict and no P0 or P1 finding, and passes
+the standard review with `prior-review` so the adversarial review does not repeat it. Otherwise
 `skip-reason` skips the adversarial review and marks its old comment as not reviewed for this commit:
 
 ```yaml
@@ -83,6 +83,7 @@ jobs:
       cancel-in-progress: true
     outputs:
       verdict: ${{ steps.review.outputs.verdict }}
+      highest-severity: ${{ steps.review.outputs.highest-severity }}
     steps:
       - id: review
         uses: ianchov/unreal-agent-pr-review-action@v1
@@ -97,7 +98,9 @@ jobs:
       group: unreal-agent-review-${{ github.event.pull_request.number }}-adversarial
       cancel-in-progress: true
     steps:
-      - if: needs.review.outputs.verdict == 'Ready to merge'
+      - if: >-
+          needs.review.outputs.verdict != ''
+          && !contains(fromJSON('["P0","P1"]'), needs.review.outputs.highest-severity)
         uses: actions/download-artifact@v8
         continue-on-error: true
         with:
@@ -109,10 +112,9 @@ jobs:
           review-mode: adversarial
           prior-review: ${{ runner.temp }}/standard-review/review.md
           skip-reason: >-
-            ${{ needs.review.outputs.verdict != 'Ready to merge'
-            && (needs.review.outputs.verdict != ''
-              && format('the standard review asks for changes ({0})', needs.review.outputs.verdict)
-              || 'the standard review gave no verdict')
+            ${{ needs.review.outputs.verdict == '' && 'the standard review gave no verdict'
+            || contains(fromJSON('["P0","P1"]'), needs.review.outputs.highest-severity)
+              && format('the standard review found a {0} defect', needs.review.outputs.highest-severity)
             || '' }}
 ```
 
@@ -144,6 +146,7 @@ by ekreloff (MIT). See [defaults/adversarial/LICENSE](defaults/adversarial/LICEN
 | `status` | Reviewer-check result, for example `Passed the reviewer check.`. Empty when the PR was skipped. |
 | `skipped` | `true` when the PR was skipped: draft, fork, Dependabot, Renovate, or `skip-reason`. |
 | `verdict` | The review's verdict: `Ready to merge`, `Merge after fixes`, or `Needs rework`. Empty when skipped or when the review has no such line. |
+| `highest-severity` | The most severe finding: `P0`, `P1`, `P2`, `P3`, or `none` without findings. Empty when skipped or when the review has no Findings section. |
 
 ## Runner requirements
 

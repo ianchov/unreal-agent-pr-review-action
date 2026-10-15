@@ -52,8 +52,8 @@ inputs:
   skip-reason:
     description: >-
       Skip this review and mark this mode's existing comment as not reviewed for this commit, with
-      this reason. For example, skip the adversarial review when the standard review's verdict is
-      not "Ready to merge". Empty means review.
+      this reason. For example, skip the adversarial review when the standard review found a P0
+      or P1 defect. Empty means review.
     default: ""
 
 outputs:
@@ -68,6 +68,11 @@ outputs:
       The review's verdict line: "Ready to merge", "Merge after fixes", or "Needs rework".
       Empty when the PR was skipped or the review has no such line.
     value: ${{ steps.review.outputs.verdict }}
+  highest-severity:
+    description: >-
+      The most severe finding of the review: "P0", "P1", "P2", or "P3", or "none" without findings.
+      Empty when the PR was skipped or the review has no Findings section.
+    value: ${{ steps.review.outputs.highest-severity }}
 
 runs:
   using: composite
