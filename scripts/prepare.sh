@@ -92,28 +92,29 @@ Check each criterion first. List each failed criterion and the change the review
 End with `VERDICT: ACCEPT` or `VERDICT: RETRY` on the last line and nothing after it.
 EOF
 
-# Bash runs inside this sandbox too. The real ANTHROPIC_API_KEY stays in the nono proxy:
-# the sandbox sees a session token, and the proxy forwards only POST /messages with the key.
+# Bash runs inside this sandbox too. The real key (UNREAL_HARNESS_LLM_API_KEY on the host) stays in
+# the nono proxy: the sandbox sees a session token under the same name, and the proxy forwards only
+# POST LLM_PATH to LLM_UPSTREAM with the key. The settings come from the provider table in gate.sh.
+# nono names the route's base URL variable after the credential: "llm" gives LLM_BASE_URL.
 # The proxy allows no other host, and Landlock blocks direct connections.
-cat > "$trusted/nono-profile.json" <<'EOF'
-{
-  "extends": "default",
-  "meta": { "name": "unreal-agent-pr-review" },
-  "security": { "capability_elevation": false },
-  "network": {
-    "allow_domain": ["api.anthropic.com"],
-    "credentials": ["anthropic"],
-    "custom_credentials": {
-      "anthropic": {
-        "upstream": "https://api.anthropic.com/v1",
-        "credential_key": "env://ANTHROPIC_API_KEY",
-        "env_var": "ANTHROPIC_API_KEY",
-        "inject_header": "x-api-key",
-        "credential_format": "{}",
-        "endpoint_rules": [{ "method": "POST", "path": "/messages" }]
+jq -n --arg domain "$LLM_DOMAIN" --arg upstream "$LLM_UPSTREAM" --arg header "$LLM_HEADER" \
+  --arg format "$LLM_FORMAT" --arg path "$LLM_PATH" '{
+  extends: "default",
+  meta: { name: "unreal-agent-pr-review" },
+  security: { capability_elevation: false },
+  network: {
+    allow_domain: [$domain],
+    credentials: ["llm"],
+    custom_credentials: {
+      llm: {
+        upstream: $upstream,
+        credential_key: "env://UNREAL_HARNESS_LLM_API_KEY",
+        env_var: "UNREAL_HARNESS_LLM_API_KEY",
+        inject_header: $header,
+        credential_format: $format,
+        endpoint_rules: [{ method: "POST", path: $path }]
       }
     }
   }
-}
-EOF
+}' > "$trusted/nono-profile.json"
 nono profile validate "$trusted/nono-profile.json"

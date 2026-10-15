@@ -6,12 +6,24 @@ branding:
   color: purple
 
 inputs:
+  provider:
+    description: 'Model provider: "anthropic", "openai", or "openrouter".'
+    default: anthropic
   anthropic-api-key:
-    description: Anthropic API key. It stays in the nono proxy and never enters the sandbox.
-    required: true
+    description: Anthropic API key, for provider anthropic. It stays in the nono proxy and never enters the sandbox.
+    default: ""
+  openai-api-key:
+    description: OpenAI API key, for provider openai. It stays in the nono proxy and never enters the sandbox.
+    default: ""
+  openrouter-api-key:
+    description: OpenRouter API key, for provider openrouter. It stays in the nono proxy and never enters the sandbox.
+    default: ""
   model:
-    description: Anthropic model for the agent and the reviewer check.
-    default: claude-sonnet-5-5
+    description: >-
+      Model for the agent and the reviewer check, in the provider's naming, for example
+      "gpt-5" for openai or "openai/gpt-5" for openrouter. Required except for anthropic,
+      which defaults to claude-sonnet-5-5.
+    default: ""
   max-review-rounds:
     description: Most agent and reviewer-check rounds per run.
     default: "3"
@@ -34,13 +46,16 @@ inputs:
       This review then reports only defects that the earlier review does not report.
       Empty, or a missing or empty file, means no earlier review.
     default: ""
+  skip-renovate:
+    description: Skip pull requests opened by Renovate (renovate[bot]).
+    default: "true"
 
 outputs:
   status:
     description: Reviewer-check result, for example "Passed the reviewer check.". Empty when the PR was skipped.
     value: ${{ steps.review.outputs.status }}
   skipped:
-    description: "\"true\" when the PR was skipped: draft, fork, or Dependabot."
+    description: "\"true\" when the PR was skipped: draft, fork, Dependabot, or Renovate."
     value: ${{ steps.gate.outputs.skipped }}
 
 runs:
@@ -52,7 +67,14 @@ runs:
         PR_DRAFT: ${{ github.event.pull_request.draft }}
         HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
         PR_AUTHOR: ${{ github.event.pull_request.user.login }}
-        ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
+        SKIP_RENOVATE: ${{ inputs.skip-renovate }}
+        PROVIDER: ${{ inputs.provider }}
+        MODEL: ${{ inputs.model }}
+        # Only the key of the chosen provider. The review step selects the same way.
+        LLM_API_KEY: >-
+          ${{ inputs.provider == 'anthropic' && inputs.anthropic-api-key
+          || inputs.provider == 'openai' && inputs.openai-api-key
+          || inputs.provider == 'openrouter' && inputs.openrouter-api-key || '' }}
         MAX_REVIEW_ROUNDS: ${{ inputs.max-review-rounds }}
         REVIEW_TIMEOUT_MINUTES: ${{ inputs.review-timeout-minutes }}
         REVIEW_MODE: ${{ inputs.review-mode }}
@@ -88,14 +110,23 @@ runs:
         DIFF_EXCLUDE: ${{ inputs.diff-exclude }}
         PROMPT_DIR: ${{ steps.gate.outputs.prompt-dir }}
         PRIOR_REVIEW: ${{ inputs.prior-review }}
+        LLM_DOMAIN: ${{ steps.gate.outputs.llm-domain }}
+        LLM_UPSTREAM: ${{ steps.gate.outputs.llm-upstream }}
+        LLM_HEADER: ${{ steps.gate.outputs.llm-header }}
+        LLM_FORMAT: ${{ steps.gate.outputs.llm-format }}
+        LLM_PATH: ${{ steps.gate.outputs.llm-path }}
       run: bash "$GITHUB_ACTION_PATH/scripts/prepare.sh"
     - id: review
       if: steps.gate.outputs.skipped == 'false'
       shell: bash
       env:
-        ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
-        UNREAL_HARNESS_LLM_PROVIDER: anthropic
-        UNREAL_HARNESS_LLM_MODEL: ${{ inputs.model }}
+        # Only the key of the chosen provider enters this step; nono keeps it out of the sandbox.
+        UNREAL_HARNESS_LLM_API_KEY: >-
+          ${{ inputs.provider == 'anthropic' && inputs.anthropic-api-key
+          || inputs.provider == 'openai' && inputs.openai-api-key
+          || inputs.provider == 'openrouter' && inputs.openrouter-api-key || '' }}
+        UNREAL_HARNESS_LLM_PROVIDER: ${{ inputs.provider }}
+        UNREAL_HARNESS_LLM_MODEL: ${{ steps.gate.outputs.model }}
         MAX_REVIEW_ROUNDS: ${{ inputs.max-review-rounds }}
         REVIEW_TIMEOUT_MINUTES: ${{ inputs.review-timeout-minutes }}
       run: timeout "${REVIEW_TIMEOUT_MINUTES}m" bash "$GITHUB_ACTION_PATH/scripts/review.sh"
@@ -105,7 +136,7 @@ runs:
         GH_TOKEN: ${{ github.token }}
         PR_NUMBER: ${{ github.event.pull_request.number }}
         HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        MODEL: ${{ inputs.model }}
+        MODEL: ${{ steps.gate.outputs.model }}
         MARKER_SUFFIX: ${{ steps.gate.outputs.suffix }}
         TITLE: ${{ steps.gate.outputs.title }}
       run: bash "$GITHUB_ACTION_PATH/scripts/comment.sh"

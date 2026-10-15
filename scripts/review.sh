@@ -12,12 +12,13 @@ trusted="$RUNNER_TEMP/unreal-agent"
 bin="$RUNNER_TEMP/unreal-agent-bin"
 cd "$work"
 
-# nono sets ANTHROPIC_BASE_URL to its proxy inside the sandbox, so it must expand there.
+# nono sets LLM_BASE_URL (from the "llm" credential in prepare.sh) to its proxy inside the sandbox,
+# so it must expand there.
 # shellcheck disable=SC2016
 run_agent() { # request.json events.jsonl
   nono run --silent --profile "$trusted/nono-profile.json" \
     --read "$bin" --read "$work" --read "$GITHUB_WORKSPACE" --read "$inputs" --allow "$state" \
-    -- sh -c 'UNREAL_HARNESS_LLM_BASE_URL="$ANTHROPIC_BASE_URL" exec "$1" -workspace "$2" -session-directory "$3"' \
+    -- sh -c 'UNREAL_HARNESS_LLM_BASE_URL="$LLM_BASE_URL" exec "$1" -workspace "$2" -session-directory "$3"' \
     sh "$bin/unreal-agent-runner" "$work" "$state" < "$1" \
     | tee "$2" \
     | jq -r --unbuffered '

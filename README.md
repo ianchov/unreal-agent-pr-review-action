@@ -36,10 +36,31 @@ jobs:
 ```
 
 1. Add the repository secret `ANTHROPIC_API_KEY` (Settings → Secrets and variables → Actions).
+   For OpenAI or OpenRouter, see [Model providers](#model-providers).
 2. Add the workflow above as `.github/workflows/unreal-agent-review.yml`.
 3. Open a pull request from a branch in the same repository.
 
 The action checks out the PR head itself. Do not add a separate checkout step.
+
+### Model providers
+
+`provider` picks the model API: `anthropic` (default), `openai`, or `openrouter`. Pass the key of
+that provider in its own input. `model` is required for `openai` and `openrouter` and uses the
+provider's model names:
+
+```yaml
+      - uses: ianchov/unreal-agent-pr-review-action@v1
+        with:
+          provider: openrouter
+          openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
+          model: openai/gpt-5
+```
+
+| `provider` | Key input | API the proxy allows |
+|---|---|---|
+| `anthropic` | `anthropic-api-key` | `POST https://api.anthropic.com/v1/messages` |
+| `openai` | `openai-api-key` | `POST https://api.openai.com/v1/responses` |
+| `openrouter` | `openrouter-api-key` | `POST https://openrouter.ai/api/v1/responses` |
 
 ### Adversarial review
 
@@ -93,20 +114,24 @@ by ekreloff (MIT). See [defaults/adversarial/LICENSE](defaults/adversarial/LICEN
 
 | Input | Default | Meaning |
 |---|---|---|
-| `anthropic-api-key` | required | Anthropic API key. |
-| `model` | `claude-sonnet-5-5` | Anthropic model for the agent and the reviewer check. |
+| `provider` | `anthropic` | Model provider: `anthropic`, `openai`, or `openrouter`. |
+| `anthropic-api-key` | empty | Anthropic API key. Required for provider `anthropic`. |
+| `openai-api-key` | empty | OpenAI API key. Required for provider `openai`. |
+| `openrouter-api-key` | empty | OpenRouter API key. Required for provider `openrouter`. |
+| `model` | `claude-sonnet-5-5` for `anthropic` | Model for the agent and the reviewer check, in the provider's names. Required for `openai` and `openrouter`. |
 | `max-review-rounds` | `3` | Most agent and reviewer-check rounds per run. |
 | `review-timeout-minutes` | `40` | Time limit for all review rounds. The runner has no timeout for each model request. |
 | `diff-exclude` | empty | Extra paths to leave out of the diff, one git pathspec per line, for example `app/staticfiles`. Common lockfiles are always left out. |
 | `review-mode` | `standard` | `standard` or `adversarial`. Each mode posts its own comment and artifact. Run each mode in its own job. |
 | `prior-review` | empty | Path to an earlier review of the same PR, for example the standard review's `review.md`. The review then reports only defects that the earlier review does not report, and the reviewer check rejects repeats. |
+| `skip-renovate` | `true` | Skip pull requests opened by Renovate (`renovate[bot]`). |
 
 ## Outputs
 
 | Output | Meaning |
 |---|---|
 | `status` | Reviewer-check result, for example `Passed the reviewer check.`. Empty when the PR was skipped. |
-| `skipped` | `true` when the PR was skipped: draft, fork, or Dependabot. |
+| `skipped` | `true` when the PR was skipped: draft, fork, Dependabot, or Renovate. |
 
 ## Runner requirements
 
@@ -134,7 +159,7 @@ format that the prompt asks for. Changes take effect only after they merge into 
 
 ```mermaid
 flowchart TD
-    A[PR opened or updated] --> G{Draft, fork, or Dependabot?}
+    A[PR opened or updated] --> G{Draft, fork, Dependabot, or Renovate?}
     G -->|yes| S[Skip with a notice]
     G -->|no| B[Check out PR head. Install runner and nono, SHA-256 checked]
     B --> C[Build inputs: diff, base-branch prompt, criteria, AGENTS.md]
@@ -166,12 +191,14 @@ flowchart TD
   the sandbox cannot see, so the agent cannot change anything a later step trusts.
 - **The workspace is not the checkout.** The runner loads `.env` and `.harness/skills` from its
   workspace, so the workspace is an empty directory. The checkout is a separate read-only path.
-- **The key never enters the sandbox.** nono holds `ANTHROPIC_API_KEY` in its proxy and gives the
-  sandbox a session token. The proxy allows only `POST /messages` on `api.anthropic.com`.
-  Landlock blocks all other connections.
+- **The key never enters the sandbox.** nono holds the provider's key in its proxy and gives the
+  sandbox a session token. The proxy allows one host and one endpoint: `POST /messages` on
+  `api.anthropic.com`, or `POST /responses` on `api.openai.com` or `openrouter.ai`. Only the key
+  of the chosen provider reaches the review step. Landlock blocks all other connections.
 - **Skipped PRs.** Drafts, fork PRs, and Dependabot PRs are skipped. Fork and Dependabot PRs get no
-  secrets, and drafts still change. The action runs only on `pull_request` events and fails on
-  any other event, including `pull_request_target`.
+  secrets, and drafts still change. Renovate PRs are skipped too unless `skip-renovate` is `false`.
+  The action runs only on `pull_request` events and fails on any other event, including
+  `pull_request_target`.
 - **Pinned downloads.** `unreal-agent-runner` and nono are pinned in
   [`scripts/install.sh`](scripts/install.sh) and checked against their release SHA-256 sums.
 - **Least privilege.** The job needs only `contents: read` and `pull-requests: write`.
