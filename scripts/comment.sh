@@ -14,14 +14,10 @@ comment_id=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/c
 
 if [ "${1:-}" = pending ]; then
   [ -n "$comment_id" ] || exit 0
-  # Line 3, under the title, holds the note. An earlier run's note is replaced, not stacked.
-  if [ -n "${SKIP_NOTE:-}" ]; then
-    note="> **Not reviewed for commit ${HEAD_SHA:0:7}:** ${SKIP_NOTE}. The review below is for the older commit in the title."
-  else
-    note="> **Reviewing commit ${HEAD_SHA:0:7}.** The review below is for the older commit in the title. It updates when this run finishes."
-  fi
+  # unreal_review.py puts the note under the title and replaces an earlier run's note there.
   gh api "repos/${GITHUB_REPOSITORY}/issues/comments/${comment_id}" --jq .body \
-    | awk -v note="$note" 'NR == 3 { print note } NR <= 2 || !/^> \*\*(Reviewing|Not reviewed for) commit /' > "$trusted/pending-comment.md"
+    | python3 "$GITHUB_ACTION_PATH/scripts/unreal_review.py" note "$HEAD_SHA" "${SKIP_NOTE:-}" \
+    > "$trusted/pending-comment.md"
   gh api --method PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${comment_id}" -F body=@"$trusted/pending-comment.md" > /dev/null
   exit 0
 fi

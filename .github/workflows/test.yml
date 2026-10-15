@@ -1,0 +1,22 @@
+name: Test
+# Unit tests and lint for scripts/unreal_review.py, the review logic the shell scripts call.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v10
+      - run: uv run ruff format --check scripts tests
+      - run: uv run ruff check scripts tests
+      - run: uv run pytest -q

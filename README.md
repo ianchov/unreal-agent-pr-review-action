@@ -149,7 +149,8 @@ by ekreloff (MIT). See [defaults/adversarial/LICENSE](defaults/adversarial/LICEN
 
 - Linux on amd64 or arm64, with Landlock (Linux 5.13 or later).
 - Debian or Ubuntu: `dpkg`, `apt-get`, and passwordless `sudo` to install nono.
-- `git`, `curl`, `jq`, `gh`, and `timeout`. GitHub-hosted Ubuntu runners have all of them.
+- `git`, `curl`, `jq`, `gh`, `timeout`, and `python3` 3.10 or later (standard library only).
+  GitHub-hosted Ubuntu runners have all of them.
 
 ## Custom prompt, criteria, and rules
 
@@ -221,6 +222,20 @@ flowchart TD
   [`scripts/install.sh`](scripts/install.sh) and checked against their release SHA-256 sums.
 - **Least privilege.** The job needs only `contents: read` and `pull-requests: write`.
   The checkout does not keep credentials.
+
+## Development
+
+The shell scripts in [`scripts/`](scripts) run git, gh, and nono. The logic they share lives in
+[`scripts/unreal_review.py`](scripts/unreal_review.py): provider settings, the review and
+reviewer-check verdicts, the usage and cost line, and the note on an outdated comment. Run its
+tests and lint with uv:
+
+```sh
+uv run pytest -q
+uv run ruff check scripts tests
+```
+
+The `Test` workflow runs the same checks on every pull request.
 
 ## Versions
 

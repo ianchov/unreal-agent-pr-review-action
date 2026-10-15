@@ -26,21 +26,12 @@ case "$OSTYPE" in
 esac
 [[ "$SKIP_RENOVATE" =~ ^(true|false)$ ]] || { echo "::error::skip-renovate must be true or false, got '$SKIP_RENOVATE'."; exit 1; }
 
-# Settings for each model provider. The nono proxy forwards only POST <path> to <upstream> and adds
-# the key in <header>. Unreal Agent's Anthropic client calls /messages; its OpenAI and OpenRouter
-# clients call /responses. OpenAI has no default model.
-case "$PROVIDER" in
-  anthropic) key_input=anthropic-api-key default_model=claude-sonnet-5-5 domain=api.anthropic.com
-    upstream=https://api.anthropic.com/v1 header=x-api-key format='{}' path=/messages ;;
-  openai) key_input=openai-api-key default_model="" domain=api.openai.com
-    upstream=https://api.openai.com/v1 header=Authorization format='Bearer {}' path=/responses ;;
-  openrouter) key_input=openrouter-api-key default_model=openai/gpt-6-sol domain=openrouter.ai
-    upstream=https://openrouter.ai/api/v1 header=Authorization format='Bearer {}' path=/responses ;;
-  *) echo "::error::provider must be anthropic, openai, or openrouter, got '$PROVIDER'."; exit 1 ;;
-esac
-[ -n "$LLM_API_KEY" ] || { echo "::error::Input $key_input is empty. Set it for provider $PROVIDER."; exit 1; }
-model="${MODEL:-$default_model}"
-[ -n "$model" ] || { echo "::error::Input model is required for provider $PROVIDER."; exit 1; }
+# Provider settings (model, and how the nono proxy reaches the API) live in unreal_review.py.
+# It also checks that the provider is known, its key is set, and a model is given or has a default.
+if ! provider_settings=$(python3 "$GITHUB_ACTION_PATH/scripts/unreal_review.py" provider); then
+  echo "$provider_settings"
+  exit 1
+fi
 for name in MAX_REVIEW_ROUNDS REVIEW_TIMEOUT_MINUTES; do
   [[ "${!name}" =~ ^[1-9][0-9]*$ ]] || { echo "::error::$name must be a positive integer, got '${!name}'."; exit 1; }
 done
@@ -66,12 +57,5 @@ if [ -n "$SKIP_REASON" ]; then
   { echo "skipped=true"; echo "skip-note=$SKIP_REASON"; } >> "$GITHUB_OUTPUT"
   exit 0
 fi
-{
-  echo "model=$model"
-  echo "llm-domain=$domain"
-  echo "llm-upstream=$upstream"
-  echo "llm-header=$header"
-  echo "llm-format=$format"
-  echo "llm-path=$path"
-} >> "$GITHUB_OUTPUT"
+echo "$provider_settings" >> "$GITHUB_OUTPUT"
 echo "skipped=false" >> "$GITHUB_OUTPUT"

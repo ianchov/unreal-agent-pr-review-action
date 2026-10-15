@@ -1,0 +1,26 @@
+[project]
+name = "unreal-agent-pr-review-action"
+version = "0"
+description = "Review logic for the Unreal Agent PR Review action. Runs with the runner's python3, standard library only."
+requires-python = ">=3.10"
+dependencies = []
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["scripts"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.17.0",
+]
