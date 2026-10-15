@@ -45,15 +45,15 @@ The action checks out the PR head itself. Do not add a separate checkout step.
 ### Model providers
 
 `provider` picks the model API: `anthropic` (default), `openai`, or `openrouter`. Pass the key of
-that provider in its own input. `model` is required for `openai` and `openrouter` and uses the
-provider's model names:
+that provider in its own input. `model` uses the provider's model names. It defaults to
+`claude-sonnet-5-5` for `anthropic` and `openai/gpt-6-sol` for `openrouter`, and is required for
+`openai`:
 
 ```yaml
       - uses: ianchov/unreal-agent-pr-review-action@v1
         with:
           provider: openrouter
           openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
-          model: openai/gpt-5
 ```
 
 | `provider` | Key input | API the proxy allows |
@@ -118,7 +118,7 @@ by ekreloff (MIT). See [defaults/adversarial/LICENSE](defaults/adversarial/LICEN
 | `anthropic-api-key` | empty | Anthropic API key. Required for provider `anthropic`. |
 | `openai-api-key` | empty | OpenAI API key. Required for provider `openai`. |
 | `openrouter-api-key` | empty | OpenRouter API key. Required for provider `openrouter`. |
-| `model` | `claude-sonnet-5-5` for `anthropic` | Model for the agent and the reviewer check, in the provider's names. Required for `openai` and `openrouter`. |
+| `model` | `claude-sonnet-5-5` for `anthropic`, `openai/gpt-6-sol` for `openrouter` | Model for the agent and the reviewer check, in the provider's names. Required for `openai`. |
 | `max-review-rounds` | `3` | Most agent and reviewer-check rounds per run. |
 | `review-timeout-minutes` | `40` | Time limit for all review rounds. The runner has no timeout for each model request. |
 | `diff-exclude` | empty | Extra paths to leave out of the diff, one git pathspec per line, for example `app/staticfiles`. Common lockfiles are always left out. |

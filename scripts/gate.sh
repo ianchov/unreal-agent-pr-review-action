@@ -28,13 +28,13 @@ esac
 
 # Settings for each model provider. The nono proxy forwards only POST <path> to <upstream> and adds
 # the key in <header>. Unreal Agent's Anthropic client calls /messages; its OpenAI and OpenRouter
-# clients call /responses. Only Anthropic has a default model.
+# clients call /responses. OpenAI has no default model.
 case "$PROVIDER" in
   anthropic) key_input=anthropic-api-key default_model=claude-sonnet-5-5 domain=api.anthropic.com
     upstream=https://api.anthropic.com/v1 header=x-api-key format='{}' path=/messages ;;
   openai) key_input=openai-api-key default_model="" domain=api.openai.com
     upstream=https://api.openai.com/v1 header=Authorization format='Bearer {}' path=/responses ;;
-  openrouter) key_input=openrouter-api-key default_model="" domain=openrouter.ai
+  openrouter) key_input=openrouter-api-key default_model=openai/gpt-6-sol domain=openrouter.ai
     upstream=https://openrouter.ai/api/v1 header=Authorization format='Bearer {}' path=/responses ;;
   *) echo "::error::provider must be anthropic, openai, or openrouter, got '$PROVIDER'."; exit 1 ;;
 esac
