@@ -83,14 +83,19 @@ def _plain(line: str) -> str:
 
 
 def review_verdict(review: str) -> str:
-    """The first non-empty line under '## Verdict' if it is a known verdict, else ''."""
+    """The known verdict that starts the first non-empty line under '## Verdict', else ''.
+
+    A reason may follow the verdict after punctuation, as in 'Merge after fixes — the P2 first'.
+    """
     lines = review.splitlines()
     if "## Verdict" not in (line.strip() for line in lines):
         return ""
     after = lines[[line.strip() for line in lines].index("## Verdict") + 1 :]
-    first = next((line for line in after if line.strip()), "")
-    verdict = _plain(first)
-    return verdict if verdict in REVIEW_VERDICTS else ""
+    first = _plain(next((line for line in after if line.strip()), ""))
+    for verdict in REVIEW_VERDICTS:
+        if re.match(rf"{re.escape(verdict)}\s*(?:$|[^\w\s])", first):
+            return verdict
+    return ""
 
 
 def review_severity(review: str) -> str:

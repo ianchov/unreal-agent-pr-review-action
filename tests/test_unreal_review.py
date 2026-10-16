@@ -113,6 +113,13 @@ def test_unknown_provider_is_rejected():
             "## Summary\nx\n## Findings\nNo findings.\n## Verdict\n  Ready to merge.  \n",
             "Ready to merge",
         ),
+        # A reason after the verdict, as an adversarial review on schetovodstvodemo#589 wrote it.
+        (
+            "## Verdict\nMerge after fixes — the cp1251 corruption (P2) should be fixed first.\n",
+            "Merge after fixes",
+        ),
+        ("## Verdict\n**Needs rework**: the export commits before it builds.\n", "Needs rework"),
+        ("## Verdict\nReady to merge (no findings).\n", "Ready to merge"),
     ],
 )
 def test_verdict_line_is_read_with_formatting_removed(text, verdict):
@@ -127,6 +134,9 @@ def test_verdict_line_is_read_with_formatting_removed(text, verdict):
         "## Verdict\n\n",
         # Only the first non-empty line counts; a later valid line does not rescue it.
         "## Verdict\nProbably fine\nReady to merge\n",
+        # A verdict that continues as other words is not that verdict.
+        "## Verdict\nReady to merge after fixes\n",
+        "## Verdict\nNot ready to merge\n",
     ],
 )
 def test_missing_or_unknown_verdict_is_empty(text):
