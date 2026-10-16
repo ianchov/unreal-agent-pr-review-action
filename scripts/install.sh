@@ -16,8 +16,8 @@ esac
 tools_table="
 unreal-agent v0.3.1 amd64 unreallabsai/unreal-agent unreal-agent_{version}_linux_amd64.tar.gz fd6e15236cc6f126ea3ddf2fc85c4be05bc5e8e4967977a89720bf95e22b304b
 unreal-agent v0.3.1 arm64 unreallabsai/unreal-agent unreal-agent_{version}_linux_arm64.tar.gz b01b096d0543277b2d58d8928da7a7df32b7dcb546a86335de2d04c81eea507b
-nono v0.79.0 amd64 nolabs-ai/nono nono-cli_{version}_amd64.deb 33b7e4f2315226bfc8ffeafc8113d444c2f71a9b98ec44c54fe3800b96938a07
-nono v0.79.0 arm64 nolabs-ai/nono nono-cli_{version}_arm64.deb 50036f6ec1e9c8374a05c52d4b7b81339fa63e4866e2d3db3adf7fe11d458c37
+nono v0.80.0 amd64 nolabs-ai/nono nono-cli_{version}_amd64.deb c85cfbeba0aa09d10be0a88ff2a356eaee528586c763c8bdc5685b318d8ccfc5
+nono v0.80.0 arm64 nolabs-ai/nono nono-cli_{version}_arm64.deb baf403522b4bc2eb6d6731d49ff3e3f92e3249da4718f2f1ffbd278ddf0395f1
 "
 
 # download TOOL: download TOOL's release asset for $arch to $RUNNER_TEMP, verify it, print its path.
