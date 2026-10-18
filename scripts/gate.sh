@@ -49,6 +49,10 @@ esac
   echo "title=$title"
 } >> "$GITHUB_OUTPUT"
 
+# Shows which settings this run uses. It names the key input, never the key value.
+model=$(sed -n 's/^model=//p' <<< "$provider_settings")
+echo "::notice::Unreal Agent review mode: $REVIEW_MODE, provider: $PROVIDER, API key: input $PROVIDER-api-key, model: $model."
+
 # A caller-given skip-reason skips the review, for example an adversarial review after a standard
 # review that asks for changes. Unlike the skips above, the comment step then marks this mode's old
 # comment with the reason, so its review is not read as the review of this commit.
