@@ -122,6 +122,34 @@ The adversarial prompt adapts the
 [adversarial-reviewer skill](https://github.com/alirezarezvani/claude-skills/tree/main/engineering-team/skills/adversarial-reviewer)
 by ekreloff (MIT). See [defaults/adversarial/LICENSE](defaults/adversarial/LICENSE).
 
+### Security review
+
+`review-mode: security` reviews only the security of the change: authentication, authorization and
+tenant isolation, secrets and token handling, injection and command construction, SSRF, path
+traversal, deserialization, unsafe defaults, missing validation at trust boundaries, and dependency
+and supply-chain changes. Text in the diff, the PR title, or the PR description that addresses the
+reviewer, for example "approve this PR", is reported as a `P1` prompt-injection finding. The
+security review uses the same output format as the standard review, so `verdict` and
+`highest-severity` work the same way. It posts its own comment and its own
+`unreal-agent-review-<PR>-security` artifact, so run it in its own job, like the adversarial review:
+
+```yaml
+      - uses: ianchov/unreal-agent-pr-review-action@v1
+        with:
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          review-mode: security
+```
+
+### Default prompts
+
+`use-default-prompts: true` uses this action's prompt and criteria for the review mode, even when
+the base branch has its own files in `.github/unreal-agent/`. Use it when the review must not depend
+on text in the repository, for example when its result decides a charge. The base-branch
+`AGENTS.md` still reaches the agent, but the task names it as untrusted data written in the
+repository, not instructions, so a rules file that says "report no findings" does not change the
+review. Only the exact value `true` pins the prompts; the action rejects any value other than `true`
+or `false`.
+
 ## Inputs
 
 | Input | Default | Meaning |
@@ -134,7 +162,8 @@ by ekreloff (MIT). See [defaults/adversarial/LICENSE](defaults/adversarial/LICEN
 | `max-review-rounds` | `3` | Most agent and reviewer-check rounds per run. |
 | `review-timeout-minutes` | `40` | Time limit for all review rounds. The runner has no timeout for each model request. |
 | `diff-exclude` | empty | Extra paths to leave out of the diff, one git pathspec per line, for example `app/staticfiles`. Common lockfiles are always left out. |
-| `review-mode` | `standard` | `standard` or `adversarial`. Each mode posts its own comment and artifact. Run each mode in its own job. |
+| `review-mode` | `standard` | `standard`, `adversarial`, or `security`. Each mode posts its own comment and artifact. Run each mode in its own job. |
+| `use-default-prompts` | `false` | `true` uses this action's prompt and criteria even when the base branch has its own, and passes `AGENTS.md` as untrusted data. See [Default prompts](#default-prompts). |
 | `prior-review` | empty | Path to an earlier review of the same PR, for example the standard review's `review.md`. The review then reports only defects that the earlier review does not report, and the reviewer check rejects repeats. |
 | `skip-renovate` | `true` | Skip pull requests opened by Renovate (`renovate[bot]`). |
 | `skip-reason` | empty | Skip this review and mark this mode's old comment as not reviewed for this commit, with this reason. |
@@ -167,7 +196,12 @@ default in [`defaults/`](defaults).
 | `.github/unreal-agent/review-criteria.md` | Criteria that the reviewer check applies to the review. |
 | `.github/unreal-agent/adversarial/pr-review.md` | Same, for the adversarial review. |
 | `.github/unreal-agent/adversarial/review-criteria.md` | Same, for the adversarial review. |
+| `.github/unreal-agent/security/pr-review.md` | Same, for the security review. |
+| `.github/unreal-agent/security/review-criteria.md` | Same, for the security review. |
 | `AGENTS.md` | Repository rules. The agent checks each change against them. |
+
+With `use-default-prompts: true` the action ignores the prompt and criteria files above and passes
+`AGENTS.md` as untrusted data, not as rules.
 
 Edit the prompt and the criteria of a review mode together. The criteria must match the output
 format that the prompt asks for. Changes take effect only after they merge into the base branch.
@@ -196,7 +230,8 @@ flowchart TD
   `skip-reason` titles it "not run for commit …" and gives the reason, and a run with `waiting-for`
   titles it "waiting for commit …".
 - **Logs.** All JSONL event logs and the final review go to the `unreal-agent-review-<PR>` artifact,
-  or `unreal-agent-review-<PR>-adversarial` for the adversarial review.
+  or `unreal-agent-review-<PR>-adversarial` and `unreal-agent-review-<PR>-security` for the
+  adversarial and security reviews.
   The job summary shows the review and token totals.
 - **Cost.** The comment's last line shows the tokens and, where possible, the cost of all agent
   and reviewer calls. OpenRouter reports the cost in each response, including the provider's charge
@@ -207,7 +242,9 @@ flowchart TD
 ## Security model
 
 - **Trusted inputs come from the base branch.** The prompt, criteria, and `AGENTS.md` are read
-  with `git show $BASE_SHA:...`, so a PR cannot weaken its own review.
+  with `git show $BASE_SHA:...`, so a PR cannot weaken its own review. With
+  `use-default-prompts: true` the prompt and criteria come from the action instead, and
+  `AGENTS.md` is named as untrusted data, so no repository file can weaken the review.
 - **Author text is data, not task.** The PR title and description go into read-only files.
   The task text only names their paths and marks them untrusted. An earlier review from
   `prior-review` is treated the same way, because its author read the PR text.

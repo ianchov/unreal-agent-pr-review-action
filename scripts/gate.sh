@@ -25,6 +25,8 @@ case "$OSTYPE" in
   *) echo "::error::Unreal Agent PR Review needs a Linux runner."; exit 1 ;;
 esac
 [[ "$SKIP_RENOVATE" =~ ^(true|false)$ ]] || { echo "::error::skip-renovate must be true or false, got '$SKIP_RENOVATE'."; exit 1; }
+# prepare.sh pins the prompts only on the exact string "true", so a typo must fail here.
+[[ "$USE_DEFAULT_PROMPTS" =~ ^(true|false)$ ]] || { echo "::error::use-default-prompts must be true or false, got '$USE_DEFAULT_PROMPTS'."; exit 1; }
 
 # Provider settings (model, and how the nono proxy reaches the API) live in unreal_review.py.
 # It also checks that the provider is known, its key is set, and a model is given or has a default.
@@ -41,7 +43,8 @@ done
 case "$REVIEW_MODE" in
   standard) prompt_dir="" suffix="" title="Unreal Agent review" ;;
   adversarial) prompt_dir="adversarial/" suffix="-adversarial" title="Unreal Agent adversarial review" ;;
-  *) echo "::error::review-mode must be standard or adversarial, got '$REVIEW_MODE'."; exit 1 ;;
+  security) prompt_dir="security/" suffix="-security" title="Unreal Agent security review" ;;
+  *) echo "::error::review-mode must be standard, adversarial, or security, got '$REVIEW_MODE'."; exit 1 ;;
 esac
 {
   echo "prompt-dir=$prompt_dir"

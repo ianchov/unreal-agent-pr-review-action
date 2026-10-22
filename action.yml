@@ -37,9 +37,16 @@ inputs:
     default: ""
   review-mode:
     description: >-
-      Review to run: "standard" or "adversarial". Each mode posts its own PR comment and artifact.
-      To run both, use one job per mode. Pass the first review to the second with prior-review.
+      Review to run: "standard", "adversarial", or "security". Each mode posts its own PR comment and
+      artifact. To run more than one, use one job per mode. Pass the first review to the next with
+      prior-review.
     default: standard
+  use-default-prompts:
+    description: >-
+      "true" uses this action's prompt and criteria for the review mode, even when the base branch
+      has its own in .github/unreal-agent/. The base-branch AGENTS.md is then passed as untrusted
+      data, not as instructions. "false" reads the prompt and criteria from the base branch.
+    default: "false"
   prior-review:
     description: >-
       Path to an earlier review of the same pull request, for example the standard review's review.md.
@@ -100,6 +107,7 @@ runs:
         MAX_REVIEW_ROUNDS: ${{ inputs.max-review-rounds }}
         REVIEW_TIMEOUT_MINUTES: ${{ inputs.review-timeout-minutes }}
         REVIEW_MODE: ${{ inputs.review-mode }}
+        USE_DEFAULT_PROMPTS: ${{ inputs.use-default-prompts }}
         SKIP_REASON: ${{ inputs.skip-reason }}
         WAITING_FOR: ${{ inputs.waiting-for }}
       run: bash "$GITHUB_ACTION_PATH/scripts/gate.sh"
@@ -139,6 +147,7 @@ runs:
         HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         DIFF_EXCLUDE: ${{ inputs.diff-exclude }}
         PROMPT_DIR: ${{ steps.gate.outputs.prompt-dir }}
+        USE_DEFAULT_PROMPTS: ${{ inputs.use-default-prompts }}
         PRIOR_REVIEW: ${{ inputs.prior-review }}
         LLM_DOMAIN: ${{ steps.gate.outputs.llm-domain }}
         LLM_UPSTREAM: ${{ steps.gate.outputs.llm-upstream }}
